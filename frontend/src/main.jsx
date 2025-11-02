@@ -2,18 +2,18 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
+import Catalog from "./pages/Catalog.jsx";   // will add next
+import Product from "./pages/Product.jsx";   // optional for now
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
   </StrictMode>,
 )
-import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
-import Login from "./pages/Login.jsx";
-import Register from "./pages/Register.jsx";
-import Catalog from "./pages/Catalog.jsx";   // will add next
-import Product from "./pages/Product.jsx";   // optional for now
 
 function Nav() {
   const loggedIn = !!localStorage.getItem("access_token");
@@ -45,6 +45,7 @@ function AppShell() {
         <Route path="/product/:id" element={<Product/>} />
         <Route path="/login" element={<Login/>} />
         <Route path="/register" element={<Register/>} />
+        <Route path="/" element={<Catalog/>} />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </>
