@@ -10,3 +10,15 @@ db.sqlite3
 # İşletim sistemi dosyaları
 .DS_Store
 Thumbs.db
+# Python / Django
+**/__pycache__/
+*.pyc
+backend/.venv/
+backend/db.sqlite3
+
+# Node
+node_modules/
+package-lock.json
+
+# macOS
+.DS_Store
