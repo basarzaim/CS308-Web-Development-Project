@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,8 +28,18 @@ SECRET_KEY = 'django-insecure-4%t8(*$mrh2rcc9f9^nqqhra#brcqews#d8w%zbl_7y^srzi^i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
 
+ALLOWED_HOSTS = [
+    "localhost",
+    "127.0.0.1",
+]
+
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+]
 
 # Application definition
 
@@ -74,6 +87,8 @@ TEMPLATES = [
     },
 ]
 
+WSGI_APPLICATION = 'config.wsgi.application'
+
 CORS_ALLOWED_ORIGINS = [
      "http://localhost:5174",
     "http://127.0.0.1:5174",
@@ -98,9 +113,15 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": int(os.getenv("DB_PORT", "5432")),
+        "OPTIONS": {"sslmode": "require"},
+        "CONN_MAX_AGE": 60,
     }
 }
 
