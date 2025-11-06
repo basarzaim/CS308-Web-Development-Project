@@ -3,6 +3,13 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/', include('products.api_urls')),
+
+    # Products endpointleri
+    path('api/products/', include('products.api_urls')),
+
+    # Cart endpointleri
     path('api/cart/', include('cart.urls')),
+
+    # Users (Register/Login vb.)
+    path('api/auth/', include('users.api_urls')),
 ]
