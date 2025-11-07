@@ -10,6 +10,8 @@ urlpatterns = [
     # Cart endpointleri
     path('api/cart/', include('cart.urls')),
 
+    path('api/users/', include('users.urls')),
+
     # Users (Register/Login vb.)
     path('api/auth/', include('users.api_urls')),
 ]
