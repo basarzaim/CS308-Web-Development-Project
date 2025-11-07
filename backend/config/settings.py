@@ -50,12 +50,14 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
     'rest_framework',
     'corsheaders',
+    'rest_framework_simplejwt',
+
     'products',
     'cart',
     'users',
-    
 ]
 
 MIDDLEWARE = [
@@ -119,9 +121,10 @@ DATABASES = {
         "USER": os.getenv("DB_USER"),
         "PASSWORD": os.getenv("DB_PASSWORD"),
         "HOST": os.getenv("DB_HOST"),
-        "PORT": int(os.getenv("DB_PORT", "5432")),
-        "OPTIONS": {"sslmode": "require"},
-        "CONN_MAX_AGE": 60,
+        "PORT": os.getenv("DB_PORT"),
+        "OPTIONS": {
+            "sslmode": os.getenv("DB_SSL", "require"),  
+        },
     }
 }
 
