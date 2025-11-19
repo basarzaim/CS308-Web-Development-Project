@@ -14,4 +14,8 @@ urlpatterns = [
 
     # Users (Register/Login vb.)
     path('api/auth/', include('users.api_urls')),
+
+    # reviews
+    path('api/', include('reviews.urls')),
+
 ]
