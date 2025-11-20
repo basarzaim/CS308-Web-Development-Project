@@ -17,5 +17,7 @@ urlpatterns = [
 
     # reviews
     path('api/', include('reviews.urls')),
+    
+    path('api/orders/', include('orders.urls')),
 
 ]
