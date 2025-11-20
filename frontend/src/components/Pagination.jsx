@@ -11,11 +11,11 @@ export default function Pagination({ page, totalPages, onChange }) {
 
   return (
     <nav className="pagination">
-      <button onClick={go(page - 1)} disabled={page <= 1}>‹ Önceki</button>
+      <button onClick={go(page - 1)} disabled={page <= 1}>‹ Previous</button>
       {pages.map(n => (
         <button key={n} className={n === page ? 'active' : ''} onClick={go(n)}>{n}</button>
       ))}
-      <button onClick={go(page + 1)} disabled={page >= totalPages}>Sonraki ›</button>
+      <button onClick={go(page + 1)} disabled={page >= totalPages}>Next ›</button>
     </nav>
   );
 }

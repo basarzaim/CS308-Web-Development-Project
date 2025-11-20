@@ -10,7 +10,9 @@ export default function Catalog() {
     try {
       const { data } = await api.get("/products/");  // note trailing slash
       setItems(Array.isArray(data) ? data : (data.results ?? []));
-    } catch (e) { setErr(""); }//Failed to load producst yazısını sildim./
+    } catch {
+      setErr("");
+    } // Removed extra "Failed to load products" message.
   })(); }, []);
 
   if (err) return <div style={{ color: "crimson" }}>{err}</div>;

@@ -1,17 +1,17 @@
-// Frontend iç parametre -> backend query anahtar eşleşmesi
+// Frontend parameter -> backend query key mapping
 export const PARAM_KEYS = {
   page: 'page',
   page_size: 'page_size',
   search: 'search',
   category: 'category',
-  brand: 'brand',            // ← eklendi
+  brand: 'brand',            // ← added
   min_price: 'min_price',
   max_price: 'max_price',
   in_stock: 'in_stock',
   ordering: 'ordering',
 };
 
-// Query string inşası (null/boşları atar, in_stock true ise gönderir)
+// Build query string (skips null/empty values, sends in_stock when true)
 export function buildQuery(params = {}) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
@@ -23,7 +23,7 @@ export function buildQuery(params = {}) {
   return qs.toString();
 }
 
-// Backend ürününü UI modeline çevir
+// Convert backend product into UI model
 export function decodeProduct(raw = {}) {
   const cat = raw.category ?? { name: raw.category_name, slug: raw.category_slug, id: raw.category_id };
   return {
@@ -32,7 +32,7 @@ export function decodeProduct(raw = {}) {
     slug: raw.slug ?? raw.handle ?? '',
     description: raw.description ?? '',
     price: Number(raw.price ?? raw.unit_price ?? 0),
-    currency: raw.currency ?? 'TRY',
+    currency: raw.currency ?? 'USD',
     image_url: raw.image_url ?? raw.image ?? raw.thumbnail ?? '',
     category: { name: cat?.name ?? '', slug: cat?.slug ?? (cat?.id ? String(cat.id) : '') },
     brand: raw.brand ?? '',
@@ -41,7 +41,7 @@ export function decodeProduct(raw = {}) {
   };
 }
 
-// Liste yanıtını normalize et
+// Normalize list response
 export function decodeListResponse(json = {}) {
   const resultsRaw = json.results ?? json.items ?? [];
   const results = resultsRaw.map(decodeProduct);

@@ -57,12 +57,15 @@
 @media (min-width: 1024px) { .pl-grid { grid-template-columns: repeat(4, 1fr); } }
 
 .pl-card {
+  display: block;
   border: 1px solid #e5e7eb;
   border-radius: 14px;
   overflow: hidden;
   background: #fff;
   box-shadow: 0 1px 2px rgba(0,0,0,.04);
   transition: transform .12s ease, box-shadow .12s ease;
+  text-decoration: none;
+  color: inherit;
 }
 .pl-card:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,0,0,.08); }
 

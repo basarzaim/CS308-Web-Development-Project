@@ -9,10 +9,11 @@ import ProductList from "./pages/ProductList.jsx";
 import Product from "./pages/Product.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
+import Checkout from "./pages/Checkout.jsx";
 
 /** 
- * Eski Vite demo içeriğini "Home" sayfası olarak tuttum.
- * Böylece hiçbir şeyi kaybetmiyoruz; sadece route'lara bağlandı.
+ * Kept the original Vite demo content as the "Home" page.
+ * Nothing is lost; it's just connected to the routes now.
  */
 function Home() {
   const [count, setCount] = useState(0);
@@ -44,20 +45,22 @@ function Home() {
 export default function App() {
   return (
     <BrowserRouter>
-      {/* basit bir üst menü */}
+      {/* simple top navigation */}
       <nav style={{ padding: 12, borderBottom: "1px solid #eee", display: "flex", gap: 12 }}>
         <Link to="/products">Home</Link>
         <Link to="/products">Products</Link>
+        <Link to="/checkout">Checkout</Link>
         <Link to="/login">Login</Link>
         <Link to="/register">Register</Link>
       </nav>
 
       <Routes>
-        {/* İstersen ana sayfa yerine direkt products'a yönlendirebilirsin */}
+        {/* Redirect root to products */}
         {/* <Route path="/" element={<Navigate to="/products" replace />} /> */}
         <Route path="/" element={<Navigate to="/products" replace />} />
         <Route path="/products" element={<ProductList />} />
         <Route path="/product/:id" element={<Product />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />

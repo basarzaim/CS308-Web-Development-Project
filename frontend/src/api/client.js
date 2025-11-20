@@ -3,8 +3,8 @@ import axios from "axios";
 
 export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? "true") === "true";
 
-// Gerçek API'ye bağlanacaksan .env'de VITE_API_URL ayarlayabilirsin.
-// Yoksa /api proxy'si varsayılır.
+// Set VITE_API_URL in .env to talk to the real API.
+// Otherwise the /api proxy is used by default.
 const baseURL = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 export const api = axios.create({
