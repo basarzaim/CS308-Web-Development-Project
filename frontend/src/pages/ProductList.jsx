@@ -1,5 +1,6 @@
 // src/pages/ProductList.jsx
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { fetchProducts, fetchCategories } from "../api/products";
 import useDebounce from "../hooks/useDebounce";
 import SkeletonGrid from "../components/SkeletonGrid.jsx";
@@ -110,7 +111,12 @@ export default function ProductList() {
       ) : (
         <section className="pl-grid">
           {filtered.map((p) => (
-            <article key={p.id} className="pl-card">
+            <Link
+              key={p.id}
+              className="pl-card"
+              to={`/product/${p.id}`}
+              aria-label={`${p.name} detay sayfasını aç`}
+            >
               <img className="pl-thumb" src={p.image || p.image_url} alt={p.name} loading="lazy" />
               <div className="pl-content">
                 <h3 className="pl-name" title={p.name}>{p.name}</h3>
@@ -121,7 +127,7 @@ export default function ProductList() {
                   {p.rating != null && <span className="pl-rating">⭐ {p.rating}</span>}
                 </div>
               </div>
-            </article>
+            </Link>
           ))}
         </section>
       )}

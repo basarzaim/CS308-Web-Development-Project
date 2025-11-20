@@ -81,3 +81,54 @@ export async function fetchCategories() {
     return Array.from(map, ([slug, name], idx) => ({ id: idx + 1, slug, name }));
   }
 }
+
+function normalizeProductResponse(data) {
+  if (!data) return null;
+  if (Array.isArray(data)) return data[0] ?? null;
+  if (Array.isArray(data.results)) return data.results[0] ?? null;
+  return data;
+}
+
+function findMockProductById(id) {
+  const numericId = Number(id);
+  return MOCK_PRODUCTS.find((p) => p.id === numericId);
+}
+
+export async function fetchProductById(id) {
+  const numericId = Number(id);
+  if (!Number.isFinite(numericId)) throw new Error("Geçersiz ürün ID");
+
+  async function getFromMock() {
+    await wait(80);
+    const mock = findMockProductById(numericId);
+    if (!mock) throw new Error("Ürün bulunamadı");
+    return mock;
+  }
+
+  if (USE_MOCK) return getFromMock();
+
+  const endpointsToTry = [
+    `/products/${numericId}/`,
+    `/products/${numericId}`,
+    `/products/products/${numericId}/`,
+  ];
+
+  let lastErr = null;
+  for (const path of endpointsToTry) {
+    try {
+      const data = await apiGet(path);
+      const normalized = normalizeProductResponse(data);
+      if (normalized) return normalized;
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+
+  const mockFallback = findMockProductById(numericId);
+  if (mockFallback) {
+    console.warn("Gerçek ürün alınamadı, mock'a düşüldü:", lastErr);
+    return mockFallback;
+  }
+
+  throw lastErr ?? new Error("Ürün alınamadı");
+}
