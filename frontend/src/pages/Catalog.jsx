@@ -12,7 +12,7 @@ export default function Catalog() {
       setItems(Array.isArray(data) ? data : (data.results ?? []));
     } catch {
       setErr("");
-    }//Failed to load producst yazısını sildim./
+    } // Removed extra "Failed to load products" message.
   })(); }, []);
 
   if (err) return <div style={{ color: "crimson" }}>{err}</div>;

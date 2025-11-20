@@ -4,18 +4,18 @@ import { apiGet, USE_MOCK, wait } from "./client";
 // ---- MOCK DATA ----
 const MOCK_PRODUCTS = Array.from({ length: 60 }).map((_, i) => ({
   id: i + 1,
-  name: `Ürün ${i + 1}`,
-  slug: `urun-${i + 1}`,
-  description: "Açıklama",
+  name: `Product ${i + 1}`,
+  slug: `product-${i + 1}`,
+  description: "Description",
   price: 1000 + i * 50,
-  currency: "TRY",
-  image: `https://picsum.photos/seed/${i + 1}/400/300`,    // ProductList için "image"
-  image_url: `https://picsum.photos/seed/${i + 1}/400/300`, // başka yerde image_url gerekirse
+  currency: "USD",
+  image: `https://picsum.photos/seed/${i + 1}/400/300`,
+  image_url: `https://picsum.photos/seed/${i + 1}/400/300`,
   category: {
-    name: ["telefon", "laptop", "kulaklık", "aksesuar"][i % 4],
-    slug: ["telefon", "laptop", "kulaklik", "aksesuar"][i % 4],
+    name: ["Phone", "Laptop", "Headphones", "Accessory"][i % 4],
+    slug: ["phone", "laptop", "headphones", "accessory"][i % 4],
   },
-  brand: ["MarkaA", "MarkaB", "MarkaC"][i % 3],
+  brand: ["BrandA", "BrandB", "BrandC"][i % 3],
   rating: Math.round((Math.random() * 2.5 + 2.5) * 10) / 10,
   stock: i % 5 === 0 ? 0 : 10,
 }));
@@ -47,7 +47,7 @@ export async function fetchProducts({ page = 1, limit = 12, q = "", sort = "" } 
       const filtered = filterAndSort(MOCK_PRODUCTS, { q, sort });
       return { items: paginate(filtered, page, limit), total: filtered.length };
     }
-    // Gerçek backend
+    // Real backend
     const data = await apiGet("/products", { params: { page, limit, q, sort } });
     return {
       items: data.items ?? data,
@@ -60,7 +60,7 @@ export async function fetchProducts({ page = 1, limit = 12, q = "", sort = "" } 
           : 0),
     };
   } catch (e) {
-    console.warn("API başarısız oldu, MOCK'a düşüyoruz:", e);
+    console.warn("API failed, falling back to mock data:", e);
     const filtered = filterAndSort(MOCK_PRODUCTS, { q, sort });
     return { items: paginate(filtered, page, limit), total: filtered.length };
   }
@@ -96,12 +96,12 @@ function findMockProductById(id) {
 
 export async function fetchProductById(id) {
   const numericId = Number(id);
-  if (!Number.isFinite(numericId)) throw new Error("Geçersiz ürün ID");
+  if (!Number.isFinite(numericId)) throw new Error("Invalid product ID");
 
   async function getFromMock() {
     await wait(80);
     const mock = findMockProductById(numericId);
-    if (!mock) throw new Error("Ürün bulunamadı");
+    if (!mock) throw new Error("Product not found");
     return mock;
   }
 
@@ -126,9 +126,9 @@ export async function fetchProductById(id) {
 
   const mockFallback = findMockProductById(numericId);
   if (mockFallback) {
-    console.warn("Gerçek ürün alınamadı, mock'a düşüldü:", lastErr);
+    console.warn("Real product could not be fetched, falling back to mock data:", lastErr);
     return mockFallback;
   }
 
-  throw lastErr ?? new Error("Ürün alınamadı");
+  throw lastErr ?? new Error("Product could not be fetched");
 }

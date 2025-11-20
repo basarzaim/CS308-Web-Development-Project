@@ -40,6 +40,14 @@
   align-items: center;
 }
 
+.product-actions {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
 .product-price {
   font-size: 1.6rem;
   font-weight: 600;

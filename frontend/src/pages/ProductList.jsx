@@ -20,7 +20,7 @@ export default function ProductList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // kategorileri al
+  // fetch categories
   useEffect(() => {
     let ignore = false;
     fetchCategories()
@@ -36,7 +36,7 @@ export default function ProductList() {
     return () => { ignore = true; };
   }, []);
 
-  // ürünleri al
+  // fetch products
   useEffect(() => {
     setLoading(true);
     fetchProducts({ page, limit: pageSize, q: debounced })
@@ -45,14 +45,14 @@ export default function ProductList() {
         setTotal(Number(total) || 0);
       })
       .catch(() => {
-        // hata metni göstermiyoruz; sade kalsın
+        // keep UI simple; suppress specific error messages
         setItems([]);
         setTotal(0);
       })
       .finally(() => setLoading(false));
   }, [page, pageSize, debounced]);
 
-  // (opsiyonel) kategori istemci tarafı filtre
+  // optional client-side category filter
   const filtered = useMemo(() => {
     if (!category) return items;
     return items.filter((p) => (p.category?.slug || p.category) === category);
@@ -71,7 +71,7 @@ export default function ProductList() {
       <div className="pl-toolbar">
         <input
           className="pl-input"
-          placeholder="Ürün ara…"
+          placeholder="Search products…"
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
@@ -81,7 +81,7 @@ export default function ProductList() {
           value={category}
           onChange={(e) => { setCategory(e.target.value); setPage(1); }}
         >
-          <option value="">Tüm kategoriler</option>
+          <option value="">All categories</option>
           {cats.map((c) => (
             <option key={c.slug} value={c.slug}>
               {c.name}{c.product_count != null ? ` (${c.product_count})` : ""}
@@ -95,19 +95,19 @@ export default function ProductList() {
           onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
         >
           {[8, 12, 16, 24, 36].map((n) => (
-            <option key={n} value={n}>{n}/sayfa</option>
+            <option key={n} value={n}>{n}/page</option>
           ))}
         </select>
       </div>
 
-      {/* Başlık */}
+      {/* Header */}
       <header className="pl-header">
         <h2 className="pl-title">Products <span className="pl-count">{total}</span></h2>
       </header>
 
       {/* Grid */}
       {filtered.length === 0 ? (
-        <div className="pl-empty">Sonuç yok.</div>
+        <div className="pl-empty">No results.</div>
       ) : (
         <section className="pl-grid">
           {filtered.map((p) => (
@@ -115,14 +115,14 @@ export default function ProductList() {
               key={p.id}
               className="pl-card"
               to={`/product/${p.id}`}
-              aria-label={`${p.name} detay sayfasını aç`}
+              aria-label={`Open ${p.name} detail page`}
             >
               <img className="pl-thumb" src={p.image || p.image_url} alt={p.name} loading="lazy" />
               <div className="pl-content">
                 <h3 className="pl-name" title={p.name}>{p.name}</h3>
                 <div className="pl-meta">
                   <span className="pl-price">
-                    {Number(p.price).toFixed(2)} {p.currency}
+                    ${Number(p.price).toFixed(2)}
                   </span>
                   {p.rating != null && <span className="pl-rating">⭐ {p.rating}</span>}
                 </div>
@@ -133,7 +133,7 @@ export default function ProductList() {
       )}
 
       {/* Pager */}
-      <nav className="pl-pager" aria-label="Sayfalama">
+      <nav className="pl-pager" aria-label="Pagination">
         <button className="pl-btn" disabled={page <= 1} onClick={() => go(page - 1)}>‹</button>
         <span className="pl-pageinfo">{page} / {totalPages}</span>
         <button className="pl-btn" disabled={page >= totalPages} onClick={() => go(page + 1)}>›</button>

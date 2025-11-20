@@ -6,7 +6,7 @@ const mockRatings = new Map();
 
 function asNumber(id) {
   const numericId = Number(id);
-  if (!Number.isFinite(numericId)) throw new Error("Geçersiz ürün ID");
+  if (!Number.isFinite(numericId)) throw new Error("Invalid product ID");
   return numericId;
 }
 
@@ -15,7 +15,7 @@ function ensureMockList(store, productId) {
   return store.get(productId);
 }
 
-function extractMessage(error, fallback = "İşlem başarısız") {
+function extractMessage(error, fallback = "Operation failed") {
   return (
     error?.response?.data?.detail ||
     error?.response?.data?.message ||
@@ -39,13 +39,13 @@ export async function fetchProductComments(productId) {
     if (Array.isArray(data?.results)) return data.results;
     return data?.items ?? [];
   } catch (error) {
-    throw new Error(extractMessage(error, "Yorumlar yüklenemedi"));
+    throw new Error(extractMessage(error, "Failed to load comments"));
   }
 }
 
 export async function createProductComment(productId, body) {
   const numericId = asNumber(productId);
-  if (!body?.trim()) throw new Error("Yorum metni boş olamaz");
+  if (!body?.trim()) throw new Error("Comment text cannot be empty");
 
   if (USE_MOCK) {
     await wait(80);
@@ -65,7 +65,7 @@ export async function createProductComment(productId, body) {
     const { data } = await api.post(`/products/${numericId}/comments/`, { body });
     return data;
   } catch (error) {
-    throw new Error(extractMessage(error, "Yorum gönderilemedi"));
+    throw new Error(extractMessage(error, "Failed to post comment"));
   }
 }
 
@@ -85,7 +85,7 @@ export async function fetchRatingSummary(productId) {
     await wait(40);
     return buildMockRatingSummary(numericId);
   }
-  // backend currently exposes sadece POST, bu yüzden null döneriz.
+  // Backend currently exposes only POST, so return null for now.
   return null;
 }
 
@@ -108,7 +108,7 @@ export async function submitProductRating(productId, score) {
     const { data } = await api.post(`/products/${numericId}/ratings/`, { score: clamped });
     return data;
   } catch (error) {
-    throw new Error(extractMessage(error, "Puan gönderilemedi"));
+    throw new Error(extractMessage(error, "Failed to submit rating"));
   }
 }
 

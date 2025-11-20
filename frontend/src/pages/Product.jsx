@@ -7,6 +7,7 @@ import {
   submitProductRating,
   fetchRatingSummary,
 } from "../api/reviews";
+import { addToGuestCart } from "../stores/cart";
 import "./Product.css";
 
 const STAR_VALUES = [1, 2, 3, 4, 5];
@@ -29,6 +30,7 @@ export default function Product() {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingNotice, setRatingNotice] = useState("");
   const [ratingError, setRatingError] = useState("");
+  const [cartNotice, setCartNotice] = useState("");
 
   const productId = useMemo(() => Number(id), [id]);
   const isLoggedIn = Boolean(localStorage.getItem("access_token"));
@@ -42,7 +44,7 @@ export default function Product() {
         if (active) setProduct(data);
       })
       .catch((err) => {
-        if (active) setProductError(err.message || "Ürün yüklenemedi");
+        if (active) setProductError(err.message || "Failed to load product");
       })
       .finally(() => {
         if (active) setLoadingProduct(false);
@@ -65,7 +67,7 @@ export default function Product() {
       const list = await fetchProductComments(productId);
       setComments(Array.isArray(list) ? list : []);
     } catch (err) {
-      setCommentsError(err.message || "Yorumlar getirilemedi");
+      setCommentsError(err.message || "Failed to load comments.");
       setComments([]);
     } finally {
       setCommentsLoading(false);
@@ -87,15 +89,15 @@ export default function Product() {
     setCommentsError("");
     const trimmed = commentBody.trim();
     if (!trimmed) {
-      setCommentsError("Lütfen yorum metnini doldurun.");
+      setCommentsError("Please enter a comment.");
       return;
     }
     try {
       await createProductComment(productId, trimmed);
       setCommentBody("");
-      setCommentNotice("Yorumun alındı! Onaylandıktan sonra listede görünecek.");
+      setCommentNotice("Thanks! Your comment will appear once approved.");
     } catch (err) {
-      setCommentsError(err.message || "Yorum gönderilemedi.");
+      setCommentsError(err.message || "Failed to submit comment.");
     }
   }
 
@@ -103,30 +105,36 @@ export default function Product() {
     setRatingNotice("");
     setRatingError("");
     if (!isLoggedIn) {
-      setRatingError("Puanlamak için giriş yapmalısınız.");
+      setRatingError("You need to log in to rate this product.");
       return;
     }
     if (!ratingValue) {
-      setRatingError("Lütfen 1-5 arası bir puan seçin.");
+      setRatingError("Please choose a rating between 1 and 5.");
       return;
     }
     setRatingLoading(true);
     try {
       await submitProductRating(productId, ratingValue);
-      setRatingNotice("Teşekkürler! Bu ürünü başarıyla oyladınız.");
+      setRatingNotice("Thanks! Your rating has been submitted.");
       await loadSummary();
     } catch (err) {
-      setRatingError(err.message || "Puan gönderilemedi.");
+      setRatingError(err.message || "Failed to submit rating.");
     } finally {
       setRatingLoading(false);
     }
+  }
+
+  function handleAddToCart() {
+    addToGuestCart(productId, 1);
+    setCartNotice("Product added to cart!");
+    setTimeout(() => setCartNotice(""), 4000);
   }
 
   if (loadingProduct) {
     return (
       <div className="product-page">
         <section className="product-card">
-          <p>Ürün bilgileri yükleniyor…</p>
+          <p>Loading product details…</p>
         </section>
       </div>
     );
@@ -138,7 +146,7 @@ export default function Product() {
         <section className="product-card">
           <p className="error">{productError}</p>
           <Link to="/products" className="link">
-            Ürün listesine dön
+            Back to products
           </Link>
         </section>
       </div>
@@ -147,11 +155,11 @@ export default function Product() {
 
   if (!product) return null;
 
-  const formattedPrice = `${Number(product.price ?? 0).toFixed(2)} ${product.currency || "TRY"}`;
+  const formattedPrice = `$${Number(product.price ?? 0).toFixed(2)}`;
   const stockLabel =
     product.stock > 0
-      ? `${product.stock} adet stokta`
-      : "Stokta yok";
+      ? `${product.stock} in stock`
+      : "Out of stock";
 
   return (
     <div className="product-page">
@@ -161,32 +169,42 @@ export default function Product() {
         </p>
         <h1 className="product-title">{product.name}</h1>
         <p className="product-description">
-          {product.description || "Bu ürün için açıklama eklenmedi."}
+          {product.description || "No description provided for this product."}
         </p>
         <div className="product-meta-row">
           <span className="product-price">{formattedPrice}</span>
           <span className="product-meta">{stockLabel}</span>
           <span className="product-meta">
-            Garanti: {product.warranty != null ? `${product.warranty} ay` : "Belirtilmedi"}
+            Warranty: {product.warranty != null ? `${product.warranty} months` : "Not specified"}
           </span>
+        </div>
+        <div className="product-actions">
+          <button type="button" className="primary-btn" onClick={handleAddToCart}>
+            Add to cart
+          </button>
+          {cartNotice && (
+            <p className="success" style={{ margin: 0 }}>
+              {cartNotice} <Link to="/checkout">Go to checkout</Link>
+            </p>
+          )}
         </div>
       </section>
 
       <section className="product-card">
         <div className="section-header">
-          <h2>Puanlama</h2>
+          <h2>Ratings</h2>
           {ratingSummary?.count ? (
             <div className="rating-summary">
               <span className="rating-value">{ratingSummary.average.toFixed(1)}</span>
-              <span className="rating-count">({ratingSummary.count} oy)</span>
+              <span className="rating-count">({ratingSummary.count} ratings)</span>
             </div>
           ) : (
-            <span className="muted">Bu ürün için henüz puan yok.</span>
+            <span className="muted">No ratings yet for this product.</span>
           )}
         </div>
 
         <div className="rating-control">
-          <div className="rating-stars" role="group" aria-label="Ürün puanı">
+          <div className="rating-stars" role="group" aria-label="Product rating">
             {STAR_VALUES.map((value) => (
               <button
                 type="button"
@@ -205,12 +223,12 @@ export default function Product() {
             onClick={handleRatingSubmit}
             disabled={ratingLoading}
           >
-            {ratingLoading ? "Gönderiliyor…" : "Puanı Gönder"}
+            {ratingLoading ? "Submitting…" : "Submit rating"}
           </button>
         </div>
         {!isLoggedIn && (
           <p className="muted">
-            Puanlamak için <Link to="/login">giriş yapın</Link>.
+            <Link to="/login">Log in</Link> to rate this product.
           </p>
         )}
         {ratingNotice && <p className="success">{ratingNotice}</p>}
@@ -219,11 +237,11 @@ export default function Product() {
 
       <section className="product-card">
         <div className="section-header">
-          <h2>Yorumlar</h2>
+          <h2>Comments</h2>
           <span className="badge">{comments.length}</span>
         </div>
         {commentsLoading ? (
-          <p>Yorumlar yükleniyor…</p>
+          <p>Loading comments…</p>
         ) : commentsError ? (
           <p className="error">{commentsError}</p>
         ) : comments.length ? (
@@ -231,7 +249,7 @@ export default function Product() {
             {comments.map((comment) => (
               <li key={comment.id} className="comment-item">
                 <div className="comment-meta">
-                  <span>{comment.author || "Anonim"}</span>
+                  <span>{comment.author || "Anonymous"}</span>
                   <span>{new Date(comment.created_at).toLocaleString()}</span>
                 </div>
                 <p>{comment.body}</p>
@@ -239,26 +257,25 @@ export default function Product() {
             ))}
           </ul>
         ) : (
-          <p className="muted">Henüz yorum yapılmamış.</p>
+          <p className="muted">No comments yet.</p>
         )}
 
         <div className="comment-form">
-          <h3>Yorum ekle</h3>
+          <h3>Add a comment</h3>
           {!isLoggedIn ? (
             <p className="muted">
-              Yorum yazmak için <Link to="/login">giriş yapın</Link> veya yeni bir{" "}
-              <Link to="/register">hesap oluşturun</Link>.
+              Log in to write a comment or <Link to="/register">create an account</Link>.
             </p>
           ) : (
             <form onSubmit={handleCommentSubmit}>
               <textarea
                 rows={4}
-                placeholder="Bu ürün hakkında düşüncelerini paylaş..."
+                placeholder="Share your thoughts about this product..."
                 value={commentBody}
                 onChange={(e) => setCommentBody(e.target.value)}
               />
               <button type="submit" className="primary-btn">
-                Gönder
+                Submit
               </button>
             </form>
           )}
