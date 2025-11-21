@@ -13,9 +13,8 @@ export default function Login() {
     setErr("");
     setLoading(true);
     try {
-      // SimpleJWT expects "username"
       const { data } = await api.post("/auth/login/", {
-        username: f.email,
+        email: f.email,
         password: f.password,
       });
       localStorage.setItem("access_token", data.access);
