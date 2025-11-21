@@ -11,6 +11,7 @@ export default function ProductList() {
   const [search, setSearch] = useState("");
   const debounced = useDebounce(search, 350);
   const [category, setCategory] = useState("");   // slug
+  const [sort, setSort] = useState("featured");
   const [pageSize, setPageSize] = useState(12);
   const [page, setPage] = useState(1);
 
@@ -52,11 +53,39 @@ export default function ProductList() {
       .finally(() => setLoading(false));
   }, [page, pageSize, debounced]);
 
-  // optional client-side category filter
+  // optional client-side category filter + sort
   const filtered = useMemo(() => {
-    if (!category) return items;
-    return items.filter((p) => (p.category?.slug || p.category) === category);
-  }, [items, category]);
+    let list = [...items];
+    
+    // Apply category filter
+    if (category) {
+      list = list.filter((p) => (p.category?.slug || p.category) === category);
+    }
+    
+    // Apply sorting
+    switch (sort) {
+      case "price-asc":
+        list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
+        break;
+      case "price-desc":
+        list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
+        break;
+      case "name-asc":
+        list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        break;
+      case "name-desc":
+        list.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+        break;
+      case "rating-desc":
+        list.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+        break;
+      default:
+        // "featured" - keep original order
+        break;
+    }
+    
+    return list;
+  }, [items, category, sort]);
 
   const totalPages = Math.max(1, Math.ceil((category ? filtered.length : total) / pageSize));
 
@@ -87,6 +116,19 @@ export default function ProductList() {
               {c.name}{c.product_count != null ? ` (${c.product_count})` : ""}
             </option>
           ))}
+        </select>
+
+        <select
+          className="pl-select"
+          value={sort}
+          onChange={(e) => { setSort(e.target.value); setPage(1); }}
+        >
+          <option value="featured">Sort: Featured</option>
+          <option value="price-asc">Price: Low to High</option>
+          <option value="price-desc">Price: High to Low</option>
+          <option value="name-asc">Name: A → Z</option>
+          <option value="name-desc">Name: Z → A</option>
+          <option value="rating-desc">Rating: Highest</option>
         </select>
 
         <select

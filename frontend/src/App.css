@@ -1,42 +1,106 @@
 #root {
-  max-width: 1280px;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  color: #0f172a;
+  background: #f5f5f5;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.catalog-page {
+  padding: 32px 24px 48px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.catalog-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.catalog-controls input,
+.catalog-controls select {
+  flex: 1 1 240px;
+  padding: 10px 12px;
+  border: 1px solid #d4d4d8;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  background: #fff;
+}
+
+.catalog-feedback {
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #e4e4e7;
+  background: #fff;
   text-align: center;
 }
 
+.catalog-feedback--error {
+  color: #b91c1c;
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.catalog-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.catalog-card {
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: box-shadow 150ms ease, transform 150ms ease;
+}
+
+.catalog-card:hover {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  transform: translateY(-2px);
+}
+
+.catalog-card__title {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.catalog-card__price {
+  font-size: 0.95rem;
+}
+
+.catalog-card__stock {
+  font-size: 0.85rem;
+}
+
 .logo {
-  height: 6em;
-  padding: 1.5em;
+  height: 5rem;
+  padding: 1rem;
   will-change: filter;
-  transition: filter 300ms;
+  transition: filter 250ms ease;
 }
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
+
+.logo.react {
   filter: drop-shadow(0 0 2em #61dafbaa);
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
+.logo:hover {
+  filter: drop-shadow(0 0 2em #6366f1aa);
 }

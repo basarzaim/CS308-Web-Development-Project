@@ -14,7 +14,7 @@ export default function Login() {
     setLoading(true);
     try {
       // SimpleJWT expects "username"
-      const { data } = await api.post("/auth/login", {
+      const { data } = await api.post("/auth/login/", {
         username: f.email,
         password: f.password,
       });

@@ -4,14 +4,19 @@ import api from "../lib/api";
 
 export default function Register() {
   const nav = useNavigate();
-  const [f, setF] = useState({ name: "", email: "", password: "" });
+  const [f, setF] = useState({ username: "", email: "", password: "" });
   const [err, setErr] = useState("");
 
   async function onSubmit(e) {
     e.preventDefault();
     setErr("");
     try {
-      const { data } = await api.post("/auth/register", f);
+      const payload = {
+        username: f.username.trim(),
+        email: f.email.trim(),
+        password: f.password,
+      };
+      const { data } = await api.post("/auth/register/", payload);
       if (data?.access) {
         localStorage.setItem("access_token", data.access);
         localStorage.setItem("refresh_token", data.refresh || "");
@@ -35,21 +40,26 @@ export default function Register() {
       {err && <div style={{ color: "crimson", marginBottom: 8 }}>{err}</div>}
       <form onSubmit={onSubmit} className="flex-col">
         <input
-          placeholder="Name"
-          value={f.name}
-          onChange={(e) => setF({ ...f, name: e.target.value })}
+          type="text"
+          placeholder="Username"
+          value={f.username}
+          onChange={(e) => setF({ ...f, username: e.target.value })}
+          required
         /><br/>
         <input
           type="email"
           placeholder="Email"
           value={f.email}
           onChange={(e) => setF({ ...f, email: e.target.value })}
+          required
         /><br/>
         <input
           type="password"
           placeholder="Password"
           value={f.password}
           onChange={(e) => setF({ ...f, password: e.target.value })}
+          required
+          minLength={8}
         /><br/>
         <button type="submit">Create account</button>
       </form>
