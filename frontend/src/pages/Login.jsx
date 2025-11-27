@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import api from "../lib/api";
 
 export default function Login() {
   const nav = useNavigate();
+  const { login } = useAuth();
   const [f, setF] = useState({ email: "", password: "" });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,8 +19,7 @@ export default function Login() {
         email: f.email,
         password: f.password,
       });
-      localStorage.setItem("access_token", data.access);
-      localStorage.setItem("refresh_token", data.refresh || "");
+      login(data.access, data.refresh || "");
       nav("/");
     } catch (e) {
       const r = e?.response;

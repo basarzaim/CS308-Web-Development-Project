@@ -44,3 +44,21 @@ class LoginView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+class UserProfileView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get the current user's profile"""
+        from .serializers import UserProfileSerializer
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data)
+
+    def patch(self, request):
+        """Update the current user's profile"""
+        from .serializers import UserProfileSerializer
+        serializer = UserProfileSerializer(request.user, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

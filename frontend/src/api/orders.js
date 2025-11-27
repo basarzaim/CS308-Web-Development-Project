@@ -59,10 +59,99 @@ export async function createOrder({ items = [], shipping = {}, customer = {}, pa
   }
 
   try {
-    const { data } = await api.post("/orders/", payload);
+    const { data } = await api.post("/orders/checkout/", payload);
     return data;
   } catch (error) {
     throw new Error(extractMessage(error));
+  }
+}
+
+export async function fetchUserOrders() {
+  if (USE_MOCK) {
+    await wait(200);
+    return mockOrders.map(order => ({
+      ...order,
+      items: [
+        { name: "Sample Product", quantity: 2, price: 299.99 }
+      ],
+      shipping: {
+        name: "John Doe",
+        address: "123 Main St",
+        city: "New York",
+        phone: "555-1234"
+      }
+    }));
+  }
+
+  try {
+    const { data } = await api.get("/orders/");
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to fetch orders"));
+  }
+}
+
+export async function fetchOrderById(orderId) {
+  if (USE_MOCK) {
+    await wait(150);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    return {
+      ...order,
+      items: [
+        { name: "Sample Product", quantity: 2, price: 299.99 }
+      ],
+      shipping: {
+        name: "John Doe",
+        address: "123 Main St",
+        city: "New York",
+        phone: "555-1234"
+      }
+    };
+  }
+
+  try {
+    const { data } = await api.get(`/orders/${orderId}/`);
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to fetch order details"));
+  }
+}
+
+export async function cancelOrder(orderId) {
+  if (USE_MOCK) {
+    await wait(150);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status === "cancelled") throw new Error("Order is already cancelled");
+    if (order.status === "delivered") throw new Error("Cannot cancel delivered orders");
+    order.status = "cancelled";
+    return order;
+  }
+
+  try {
+    const { data } = await api.post(`/orders/${orderId}/cancel/`);
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to cancel order"));
+  }
+}
+
+export async function returnOrder(orderId) {
+  if (USE_MOCK) {
+    await wait(150);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status !== "delivered") throw new Error("Only delivered orders can be returned");
+    order.status = "return_requested";
+    return order;
+  }
+
+  try {
+    const { data } = await api.post(`/orders/${orderId}/return/`);
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to request return"));
   }
 }
 
