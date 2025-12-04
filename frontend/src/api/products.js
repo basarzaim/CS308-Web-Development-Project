@@ -48,7 +48,7 @@ export async function fetchProducts({ page = 1, limit = 12, q = "", sort = "" } 
       return { items: paginate(filtered, page, limit), total: filtered.length };
     }
     // Real backend
-    const data = await apiGet("/products", { params: { page, limit, q, sort } });
+    const data = await apiGet("/products/products/", { params: { page, limit, q, sort } });
     return {
       items: data.items ?? data,
       total:

@@ -167,7 +167,7 @@ export default function Orders() {
                       <p className="item-qty">Qty: {item.quantity}</p>
                     </div>
                     <div className="item-price">
-                      ${(item.price * item.quantity).toFixed(2)}
+                      ${(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -186,11 +186,11 @@ export default function Orders() {
               <div className="order-summary">
                 <div className="summary-row">
                   <span>Subtotal:</span>
-                  <span>${order.subtotal?.toFixed(2) || '0.00'}</span>
+                  <span>${Number(order.subtotal || 0).toFixed(2)}</span>
                 </div>
                 <div className="summary-row total">
                   <span>Total:</span>
-                  <span>${order.total?.toFixed(2) || '0.00'}</span>
+                  <span>${Number(order.total || 0).toFixed(2)}</span>
                 </div>
               </div>
 
