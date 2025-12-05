@@ -19,5 +19,8 @@ urlpatterns = [
     path('api/', include('reviews.urls')),
     
     path('api/orders/', include('orders.urls')),
+    
+    # DRF browsable API login/logout
+    path('api-auth/', include('rest_framework.urls')),
 
 ]
