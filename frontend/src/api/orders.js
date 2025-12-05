@@ -59,10 +59,188 @@ export async function createOrder({ items = [], shipping = {}, customer = {}, pa
   }
 
   try {
-    const { data } = await api.post("/orders/", payload);
+    const { data } = await api.post("/orders/checkout/", payload);
     return data;
   } catch (error) {
     throw new Error(extractMessage(error));
+  }
+}
+
+export async function fetchUserOrders() {
+  if (USE_MOCK) {
+    await wait(200);
+    return mockOrders.map(order => ({
+      ...order,
+      items: [
+        { name: "Sample Product", quantity: 2, price: 299.99 }
+      ],
+      shipping: {
+        name: "John Doe",
+        address: "123 Main St",
+        city: "New York",
+        phone: "555-1234"
+      }
+    }));
+  }
+
+  try {
+    const { data } = await api.get("/orders/");
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to fetch orders"));
+  }
+}
+
+export async function fetchOrderById(orderId) {
+  if (USE_MOCK) {
+    await wait(150);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    return {
+      ...order,
+      items: [
+        { name: "Sample Product", quantity: 2, price: 299.99 }
+      ],
+      shipping: {
+        name: "John Doe",
+        address: "123 Main St",
+        city: "New York",
+        phone: "555-1234"
+      }
+    };
+  }
+
+  try {
+    const { data } = await api.get(`/orders/${orderId}/`);
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to fetch order details"));
+  }
+}
+
+export async function cancelOrder(orderId) {
+  if (USE_MOCK) {
+    await wait(150);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status === "cancelled") throw new Error("Order is already cancelled");
+    if (order.status === "delivered") throw new Error("Cannot cancel delivered orders");
+    order.status = "cancelled";
+    return order;
+  }
+
+  try {
+    const { data } = await api.post(`/orders/${orderId}/cancel/`);
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to cancel order"));
+  }
+}
+
+export async function returnOrder(orderId) {
+  if (USE_MOCK) {
+    await wait(150);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status !== "delivered") throw new Error("Only delivered orders can be returned");
+    order.status = "return_requested";
+    return order;
+  }
+
+  try {
+    const { data } = await api.post(`/orders/${orderId}/return/`);
+    return data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Unable to request return"));
+  }
+}
+
+// Admin functions for order management
+export async function fetchAllOrders() {
+  if (USE_MOCK) {
+    await wait(200);
+    // Generate some mock orders with various statuses
+    const statuses = ["pending", "processing", "shipped", "delivered", "cancelled", "return_requested"];
+    const mockAllOrders = mockOrders.length > 0 
+      ? [...mockOrders]
+      : Array.from({ length: 10 }, (_, i) => ({
+          id: `MOCK-${i + 1}`,
+          status: statuses[i % statuses.length],
+          total: 100 + i * 50,
+          subtotal: 100 + i * 50,
+          shipping_fee: i % 3 === 0 ? 0 : 49.9,
+          created_at: new Date(Date.now() - i * 86400000).toISOString(),
+          user: { id: i + 1, username: `user${i + 1}`, email: `user${i + 1}@example.com` },
+          items: [
+            { name: `Product ${i + 1}`, quantity: i + 1, price: 50 + i * 10 }
+          ],
+          shipping: {
+            name: `Customer ${i + 1}`,
+            address: `${100 + i} Main St`,
+            city: "New York",
+            phone: `555-${1000 + i}`
+          }
+        }));
+    return mockAllOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  try {
+    // Try different possible admin endpoints
+    const endpoints = ["/admin/orders/", "/orders/all/", "/orders/"];
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.get(endpoint);
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.items)) return data.items;
+      } catch {
+        continue;
+      }
+    }
+    throw new Error("No endpoint found for fetching all orders");
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to load orders"));
+  }
+}
+
+export async function updateOrderStatus(orderId, newStatus) {
+  const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled", "return_requested", "returned"];
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+  }
+
+  if (USE_MOCK) {
+    await wait(100);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    order.status = newStatus;
+    return order;
+  }
+
+  try {
+    // Try PATCH or PUT endpoints
+    const endpoints = [
+      `/admin/orders/${orderId}/status/`,
+      `/orders/${orderId}/status/`,
+      `/admin/orders/${orderId}/`,
+      `/orders/${orderId}/`,
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.patch(endpoint, { status: newStatus });
+        return data;
+      } catch {
+        try {
+          const { data } = await api.put(endpoint, { status: newStatus });
+          return data;
+        } catch {
+          continue;
+        }
+      }
+    }
+    throw new Error("No endpoint found for updating order status");
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to update order status"));
   }
 }
 

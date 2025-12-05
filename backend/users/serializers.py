@@ -15,3 +15,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         user.set_password(password)  # 🔒 Şifre burada güvenli şekilde hashleniyor
         user.save()
         return user
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    address = serializers.CharField(source='home_address', allow_blank=True, required=False)
+
+    class Meta:
+        model = Customer
+        fields = ("id", "email", "username", "first_name", "last_name", "phone", "address", "taxID", "home_address")
+        read_only_fields = ("id", "email")

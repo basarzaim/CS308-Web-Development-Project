@@ -12,8 +12,7 @@ class CommentSerializer(serializers.ModelSerializer):
 class RatingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Rating
-        fields = ['id', 'product', 'score', 'created_at']
-        read_only_fields = ['customer']
+        fields = ['id', 'score']
 
     def validate_score(self, value):
         if value < 1 or value > 5:

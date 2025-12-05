@@ -13,6 +13,7 @@ from .serializers import OrderSerializer
 class CheckoutView(APIView):
     def post(self, request):
         user = request.user
+        items_data = request.data.get('items', [])
 
         cart_items = CartItem.objects.filter(user=user).select_related("product")
 
