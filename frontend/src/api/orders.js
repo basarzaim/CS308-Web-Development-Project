@@ -155,3 +155,92 @@ export async function returnOrder(orderId) {
   }
 }
 
+// Admin functions for order management
+export async function fetchAllOrders() {
+  if (USE_MOCK) {
+    await wait(200);
+    // Generate some mock orders with various statuses
+    const statuses = ["pending", "processing", "shipped", "delivered", "cancelled", "return_requested"];
+    const mockAllOrders = mockOrders.length > 0 
+      ? [...mockOrders]
+      : Array.from({ length: 10 }, (_, i) => ({
+          id: `MOCK-${i + 1}`,
+          status: statuses[i % statuses.length],
+          total: 100 + i * 50,
+          subtotal: 100 + i * 50,
+          shipping_fee: i % 3 === 0 ? 0 : 49.9,
+          created_at: new Date(Date.now() - i * 86400000).toISOString(),
+          user: { id: i + 1, username: `user${i + 1}`, email: `user${i + 1}@example.com` },
+          items: [
+            { name: `Product ${i + 1}`, quantity: i + 1, price: 50 + i * 10 }
+          ],
+          shipping: {
+            name: `Customer ${i + 1}`,
+            address: `${100 + i} Main St`,
+            city: "New York",
+            phone: `555-${1000 + i}`
+          }
+        }));
+    return mockAllOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  try {
+    // Try different possible admin endpoints
+    const endpoints = ["/admin/orders/", "/orders/all/", "/orders/"];
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.get(endpoint);
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.items)) return data.items;
+      } catch {
+        continue;
+      }
+    }
+    throw new Error("No endpoint found for fetching all orders");
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to load orders"));
+  }
+}
+
+export async function updateOrderStatus(orderId, newStatus) {
+  const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled", "return_requested", "returned"];
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
+  }
+
+  if (USE_MOCK) {
+    await wait(100);
+    const order = mockOrders.find(o => o.id === orderId);
+    if (!order) throw new Error("Order not found");
+    order.status = newStatus;
+    return order;
+  }
+
+  try {
+    // Try PATCH or PUT endpoints
+    const endpoints = [
+      `/admin/orders/${orderId}/status/`,
+      `/orders/${orderId}/status/`,
+      `/admin/orders/${orderId}/`,
+      `/orders/${orderId}/`,
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.patch(endpoint, { status: newStatus });
+        return data;
+      } catch {
+        try {
+          const { data } = await api.put(endpoint, { status: newStatus });
+          return data;
+        } catch {
+          continue;
+        }
+      }
+    }
+    throw new Error("No endpoint found for updating order status");
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to update order status"));
+  }
+}
+

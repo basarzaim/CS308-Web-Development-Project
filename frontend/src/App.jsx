@@ -12,6 +12,7 @@ import Checkout from "./pages/Checkout.jsx";
 import Orders from "./pages/Orders.jsx";
 import Profile from "./pages/Profile.jsx";
 import CommentModeration from "./pages/CommentModeration.jsx";
+import AdminOrders from "./pages/AdminOrders.jsx";
 
 function Navigation() {
   const { isAuthenticated, logout, user } = useAuth();
@@ -36,6 +37,7 @@ function Navigation() {
         <Link to="/checkout">Checkout</Link>
         {isAuthenticated && <Link to="/orders">My Orders</Link>}
         {isAdmin(user) && <Link to="/admin/comments">Moderate Comments</Link>}
+        {isAdmin(user) && <Link to="/admin/orders">Manage Orders</Link>}
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {isAuthenticated ? (
@@ -72,6 +74,7 @@ export default function App() {
           <Route path="/orders" element={<Orders />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/comments" element={<CommentModeration />} />
+          <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
         </Routes>
       </AuthProvider>
