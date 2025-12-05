@@ -24,5 +24,6 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "delivered_at",
+            "items",
         ]
         read_only_fields = ["user", "created_at", "updated_at", "delivered_at"]
