@@ -4,10 +4,11 @@ from .models import Comment, Rating
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
     list_display = ('customer', 'product', 'status', 'created_at')
-    
     list_filter = ('status', 'created_at')
-
     search_fields = ('body', 'customer__username', 'product__name')
+
+    
+    list_editable = ('status',)
 
 @admin.register(Rating)
 class RatingAdmin(admin.ModelAdmin):
