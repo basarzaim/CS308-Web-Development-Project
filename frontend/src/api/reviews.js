@@ -112,3 +112,79 @@ export async function submitProductRating(productId, score) {
   }
 }
 
+// Admin functions for comment moderation
+export async function fetchPendingComments() {
+  if (USE_MOCK) {
+    await wait(80);
+    // Collect all pending comments from all products
+    const allPending = [];
+    for (const [productId, comments] of mockComments.entries()) {
+      const pending = comments.filter((c) => c.status === "pending");
+      allPending.push(...pending.map((c) => ({ ...c, product_id: productId })));
+    }
+    return allPending.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+
+  try {
+    // Try different possible endpoints
+    const endpoints = ["/comments/pending/", "/comments/?status=pending", "/admin/comments/pending/"];
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.get(endpoint);
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data?.results)) return data.results;
+        if (Array.isArray(data?.items)) return data.items;
+      } catch {
+        continue;
+      }
+    }
+    throw new Error("No endpoint found for pending comments");
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to load pending comments"));
+  }
+}
+
+export async function updateCommentStatus(commentId, status) {
+  if (!["pending", "approved", "rejected"].includes(status)) {
+    throw new Error("Invalid status. Must be pending, approved, or rejected");
+  }
+
+  if (USE_MOCK) {
+    await wait(60);
+    // Find and update comment in mock store
+    for (const [productId, comments] of mockComments.entries()) {
+      const index = comments.findIndex((c) => c.id === commentId);
+      if (index >= 0) {
+        comments[index].status = status;
+        return { ...comments[index], product_id: productId };
+      }
+    }
+    throw new Error("Comment not found");
+  }
+
+  try {
+    // Try PATCH or PUT endpoints
+    const endpoints = [
+      `/comments/${commentId}/`,
+      `/admin/comments/${commentId}/`,
+      `/comments/${commentId}/status/`,
+    ];
+    for (const endpoint of endpoints) {
+      try {
+        const { data } = await api.patch(endpoint, { status });
+        return data;
+      } catch {
+        try {
+          const { data } = await api.put(endpoint, { status });
+          return data;
+        } catch {
+          continue;
+        }
+      }
+    }
+    throw new Error("No endpoint found for updating comment status");
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to update comment status"));
+  }
+}
+

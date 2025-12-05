@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import "./App.css";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { isAdmin } from "./utils/admin";
 
-// Sayfalar
+// Pages
 import ProductList from "./pages/ProductList.jsx";
 import Product from "./pages/Product.jsx";
 import Login from "./pages/Login.jsx";
@@ -10,9 +11,10 @@ import Register from "./pages/Register.jsx";
 import Checkout from "./pages/Checkout.jsx";
 import Orders from "./pages/Orders.jsx";
 import Profile from "./pages/Profile.jsx";
+import CommentModeration from "./pages/CommentModeration.jsx";
 
 function Navigation() {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
 
   const handleLogout = () => {
     logout();
@@ -33,6 +35,7 @@ function Navigation() {
         <Link to="/products">Products</Link>
         <Link to="/checkout">Checkout</Link>
         {isAuthenticated && <Link to="/orders">My Orders</Link>}
+        {isAdmin(user) && <Link to="/admin/comments">Moderate Comments</Link>}
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {isAuthenticated ? (
@@ -68,6 +71,7 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/orders" element={<Orders />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/admin/comments" element={<CommentModeration />} />
           <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
         </Routes>
       </AuthProvider>
