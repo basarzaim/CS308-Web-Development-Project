@@ -28,6 +28,9 @@ SECRET_KEY = 'django-insecure-4%t8(*$mrh2rcc9f9^nqqhra#brcqews#d8w%zbl_7y^srzi^i
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+LOGIN_REDIRECT_URL = '/api/products/'
+
+LOGOUT_REDIRECT_URL = '/api-auth/login/'
 
 ALLOWED_HOSTS = [
     "localhost",
