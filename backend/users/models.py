@@ -9,9 +9,6 @@ class Customer(AbstractUser):
     # 'email unique
     email = models.EmailField(unique=True)
 
-    taxID = models.CharField(max_length=100, blank=True, null=True)
-    home_address = models.TextField(blank=True, null=True)
-    phone = models.CharField(max_length=20, blank=True, null=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username'] 
