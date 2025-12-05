@@ -4,9 +4,23 @@ from rest_framework import status, generics, permissions
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer 
+from .serializers import RegisterSerializer , CustomerProfileSerializer
 
+Customer = get_user_model()
 User = get_user_model()
+
+class CustomerProfileView(generics.RetrieveUpdateAPIView):
+    """
+    GET  /api/users/profile/   -> get my profile
+    PUT  /api/users/profile/   -> update all editable fields
+    PATCH /api/users/profile/  -> partial update
+    """
+    serializer_class = CustomerProfileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        # Always return the currently logged-in user
+        return self.request.user
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()

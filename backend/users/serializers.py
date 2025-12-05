@@ -1,6 +1,20 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from .models import Customer
 
+Customer = get_user_model()
+
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = [
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+        ]
+        read_only_fields = ["id", "email", "username"]
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
