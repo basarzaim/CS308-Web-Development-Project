@@ -8,7 +8,8 @@ from cart.models import CartItem
 from products.models import Product
 from .models import Order, OrderItem
 from .serializers import OrderSerializer
-
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAdminUser
 
 class CheckoutView(APIView):
     def post(self, request):
@@ -97,3 +98,31 @@ class OrderReturnView(APIView):
         order.save()
 
         return Response({"message": "Return request submitted. Waiting for approval."}, status=status.HTTP_200_OK)
+
+@api_view(["PUT"])
+@permission_classes([IsAdminUser])
+def admin_update_order_status(request, order_id):
+
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return Response({"error": "Order not found"}, status=status.HTTP_404_NOT_FOUND)
+
+    new_status = request.data.get("status")
+
+    valid = [choice[0] for choice in Order.STATUS_CHOICES]
+    if new_status not in valid:
+        return Response(
+            {"error": f"Invalid status. Must be one of: {valid}"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    order.status = new_status
+    order.save()
+
+    return Response(
+        {"message": "Status updated", "order_id": order_id, "new_status": new_status},
+        status=status.HTTP_200_OK
+    )
+
+    
