@@ -128,6 +128,29 @@ export default function Checkout() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleNameChange(value) {
+    // Remove numbers from full name
+    const filtered = value.replace(/[0-9]/g, '');
+    updateForm('full_name', filtered);
+  }
+
+  function handlePhoneChange(value) {
+    // Allow only numbers in phone field
+    const filtered = value.replace(/[^0-9]/g, '');
+    updateForm('phone', filtered);
+  }
+
+  function handleEmailChange(value) {
+    updateForm('email', value);
+  }
+
+  function validateEmail(email) {
+    if (!email) return true; // Email is optional
+    // Must have @, at least 2 letters after @, and end with .com
+    const emailRegex = /^[^\s@]+@[a-zA-Z]{2,}\.com$/;
+    return emailRegex.test(email);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -139,6 +162,10 @@ export default function Checkout() {
     }
     if (!form.full_name || !form.address || !form.city || !form.phone) {
       setError("Please fill in the required shipping fields.");
+      return;
+    }
+    if (form.email && !validateEmail(form.email)) {
+      setError("Please enter a valid email address (must have at least 2 letters after @ and end with .com).");
       return;
     }
 
@@ -275,8 +302,9 @@ export default function Checkout() {
               <input
                 type="text"
                 value={form.full_name}
-                onChange={(e) => updateForm("full_name", e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
                 required
+                placeholder="Enter your full name"
               />
             </label>
             <label>
@@ -284,17 +312,26 @@ export default function Checkout() {
               <input
                 type="email"
                 value={form.email}
-                onChange={(e) => updateForm("email", e.target.value)}
-                placeholder="ornek@mail.com"
+                onChange={(e) => handleEmailChange(e.target.value)}
+                placeholder="example@mail.com"
+                pattern="[^\s@]+@[a-zA-Z]{2,}\.com"
+                title="Email must have at least 2 letters after @ and end with .com"
               />
+              {form.email && !validateEmail(form.email) && (
+                <span style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '4px' }}>
+                  Email must have at least 2 letters after @ and end with .com
+                </span>
+              )}
             </label>
             <label>
               Phone*
               <input
                 type="tel"
                 value={form.phone}
-                onChange={(e) => updateForm("phone", e.target.value)}
+                onChange={(e) => handlePhoneChange(e.target.value)}
                 required
+                placeholder="Enter phone number"
+                inputMode="numeric"
               />
             </label>
             <label>
