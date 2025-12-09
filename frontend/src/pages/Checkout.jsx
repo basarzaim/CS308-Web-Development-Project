@@ -36,7 +36,10 @@ export default function Checkout() {
   }, []);
 
   const totals = useMemo(() => {
-    const subtotal = cartItems.reduce((sum, item) => sum + Number(item.price || 0) * item.qty, 0);
+    const subtotal = cartItems.reduce((sum, item) => {
+      const qty = typeof item.qty === 'string' ? (Number(item.qty) || 1) : item.qty;
+      return sum + Number(item.price || 0) * qty;
+    }, 0);
     const shipping = cartItems.length ? (subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE) : 0;
     return {
       subtotal,
@@ -82,7 +85,32 @@ export default function Checkout() {
   }
 
   function handleQtyChange(productId, value) {
-    const nextQty = Math.max(1, Number(value) || 1);
+    // Allow empty string or any input for editing - validate on blur
+    const numValue = Number(value);
+    if (value === '' || isNaN(numValue) || numValue < 1) {
+      // Allow empty or invalid input temporarily for editing
+      // Store as string temporarily so user can delete and type
+      setCartItems((prev) =>
+        prev.map((item) =>
+          Number(item.productId) === Number(productId) ? { ...item, qty: value === '' ? '' : (isNaN(numValue) ? value : numValue) } : item
+        )
+      );
+    } else {
+      // Valid number entered - update immediately
+      const nextQty = Math.max(1, numValue);
+      updateGuestCartQty(productId, nextQty);
+      setCartItems((prev) =>
+        prev.map((item) =>
+          Number(item.productId) === Number(productId) ? { ...item, qty: nextQty } : item
+        )
+      );
+    }
+  }
+
+  function handleQtyBlur(productId, value) {
+    // Validate and set minimum on blur - ensure we always have a valid number
+    const numValue = Number(value);
+    const nextQty = Math.max(1, numValue || 1);
     updateGuestCartQty(productId, nextQty);
     setCartItems((prev) =>
       prev.map((item) =>
@@ -201,12 +229,14 @@ export default function Checkout() {
                   </div>
                   <div className="cart-controls">
                     <label className="cart-qty">
-                      Qty:
+                      Quantity:
                       <input
                         type="number"
                         min="1"
                         value={item.qty}
                         onChange={(e) => handleQtyChange(item.productId, e.target.value)}
+                        onBlur={(e) => handleQtyBlur(item.productId, e.target.value)}
+                        onFocus={(e) => e.target.select()}
                       />
                     </label>
                     <button type="button" className="link danger" onClick={() => handleRemove(item.productId)}>
@@ -214,7 +244,7 @@ export default function Checkout() {
                     </button>
                   </div>
                   <div className="cart-subtotal">
-                    ${(item.price * item.qty).toFixed(2)}
+                    ${(item.price * (typeof item.qty === 'string' ? (Number(item.qty) || 1) : item.qty)).toFixed(2)}
                   </div>
                 </li>
               ))}
