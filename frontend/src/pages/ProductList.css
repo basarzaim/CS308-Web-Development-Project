@@ -226,6 +226,10 @@
 @media (min-width: 1024px) { .pl-grid { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 1280px) { .pl-grid { grid-template-columns: repeat(4, 1fr); } }
 
+.pl-card-wrapper {
+  position: relative;
+}
+
 .pl-card {
   display: block;
   border: 1px solid #e5e7eb;
@@ -346,4 +350,52 @@
     width: 100%;
     margin-right: 0;
   }
+}
+
+/* Wishlist Heart Button */
+.pl-card-wrapper {
+  position: relative;
+}
+
+.pl-wishlist-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #FF0066;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(255, 0, 102, 0.2);
+  padding: 0;
+}
+
+.pl-wishlist-btn:hover {
+  background: #fff;
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(255, 0, 102, 0.4);
+  border-color: #FF0066;
+}
+
+.pl-wishlist-btn.active {
+  background: rgba(255, 0, 102, 0.1);
+  border-color: #FF0066;
+}
+
+.pl-wishlist-btn.active:hover {
+  background: rgba(255, 0, 102, 0.2);
+}
+
+.pl-wishlist-btn svg {
+  transition: all 0.2s ease;
+}
+
+.pl-wishlist-btn:hover svg {
+  transform: scale(1.1);
 }

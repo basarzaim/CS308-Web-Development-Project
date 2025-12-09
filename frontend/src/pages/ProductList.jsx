@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { fetchProducts, fetchCategories } from "../api/products";
 import useDebounce from "../hooks/useDebounce";
 import SkeletonGrid from "../components/SkeletonGrid.jsx";
+import { toggleGuestWishlist, isInGuestWishlist, getGuestWishlist } from "../stores/wishlist";
 import "./ProductList.css";
 
 export default function ProductList() {
@@ -16,6 +17,7 @@ export default function ProductList() {
   const [sort, setSort] = useState("featured");
   const [pageSize, setPageSize] = useState(12);
   const [page, setPage] = useState(1);
+  const [wishlistUpdate, setWishlistUpdate] = useState(0); // Force re-render on wishlist change
 
   // data state
   const [cats, setCats] = useState([]);
@@ -120,6 +122,12 @@ export default function ProductList() {
   }, [items, category, brand, color, sort]);
 
   const totalPages = Math.max(1, Math.ceil((category || brand || color ? filtered.length : total) / pageSize));
+
+  // Get current wishlist items to ensure re-render when wishlist changes
+  const wishlistItems = useMemo(() => {
+    // This will be recalculated when wishlistUpdate changes
+    return getGuestWishlist();
+  }, [wishlistUpdate]);
 
   // pagination helper
   const go = (n) => setPage(Math.min(Math.max(1, n), totalPages));
@@ -268,25 +276,54 @@ export default function ProductList() {
             <div className="pl-empty">No results found. Try adjusting your filters.</div>
           ) : (
             <section className="pl-grid">
-              {filtered.map((p) => (
-                <Link
-                  key={p.id}
-                  className="pl-card"
-                  to={`/product/${p.id}`}
-                  aria-label={`Open ${p.name} detail page`}
-                >
-                  <img className="pl-thumb" src={p.image || p.image_url} alt={p.name} loading="lazy" />
-                  <div className="pl-content">
-                    <h3 className="pl-name" title={p.name}>{p.name}</h3>
-                    <div className="pl-meta">
-                      <span className="pl-price">
-                        ${Number(p.price).toFixed(2)}
-                      </span>
-                      {p.rating != null && <span className="pl-rating">⭐ {p.rating}</span>}
-                    </div>
+              {filtered.map((p) => {
+                // Check wishlist status - use wishlistItems array for reliable updates
+                const inWishlist = wishlistItems.includes(p.id);
+                return (
+                  <div key={p.id} className="pl-card-wrapper">
+                    <Link
+                      className="pl-card"
+                      to={`/product/${p.id}`}
+                      aria-label={`Open ${p.name} detail page`}
+                    >
+                      <img className="pl-thumb" src={p.image || p.image_url} alt={p.name} loading="lazy" />
+                      <div className="pl-content">
+                        <h3 className="pl-name" title={p.name}>{p.name}</h3>
+                        <div className="pl-meta">
+                          <span className="pl-price">
+                            ${Number(p.price).toFixed(2)}
+                          </span>
+                          {p.rating != null && <span className="pl-rating">⭐ {p.rating}</span>}
+                        </div>
+                      </div>
+                    </Link>
+                    <button
+                      className={`pl-wishlist-btn ${inWishlist ? 'active' : ''}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        toggleGuestWishlist(p.id);
+                        // Force re-render by updating state
+                        setWishlistUpdate(prev => prev + 1);
+                      }}
+                      aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill={inWishlist ? "#FF0066" : "none"}
+                        stroke="#FF0066"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+                      </svg>
+                    </button>
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </section>
           )}
 
