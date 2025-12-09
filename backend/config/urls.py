@@ -22,5 +22,7 @@ urlpatterns = [
     
     # DRF browsable API login/logout
     path('api-auth/', include('rest_framework.urls')),
+    # wishlist
+    path('api/wishlist/', include('wishlist.api_urls')),
 
 ]
