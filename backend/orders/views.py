@@ -10,6 +10,8 @@ from .models import Order, OrderItem
 from .serializers import OrderSerializer
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
+from decimal import Decimal   
+
 
 class CheckoutView(APIView):
     def post(self, request):
@@ -58,46 +60,55 @@ class CheckoutView(APIView):
 class OrderCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self,request,pk):
-        order = get_object_or_404(Order, pk=pk ,user=request.user)
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk, user=request.user)
 
-        if order.status != 'processing': #cancel if status is processing
+        if order.status != 'processing':  
             return Response(
-            {"error": "Cannot cancel order. It is already in transit or delivered."}, 
-            status=status.HTTP_400_BAD_REQUEST
-        )
-        
+                {"error": "Cannot cancel order. It is already in transit or delivered."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         order.status = 'cancalled'
         order.save()
 
         return Response({"Order cancelled successfully."}, status=status.HTTP_200_OK)
+
 
 class OrderReturnView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, pk):
         order = get_object_or_404(Order, pk=pk, user=request.user)
+
         if order.status != 'delivered':
             return Response(
-                {"error": "Cannot return an order that has not been delivered."}, 
+                {"error": "Cannot return an order that has not been delivered."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
-        if not order.delivered_at:  # Must be within 30 days
-            return Response({"error": "Delivery date not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if not order.delivered_at:  
+            return Response(
+                {"error": "Delivery date not found."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         days_passed = (timezone.now() - order.delivered_at).days
 
         if days_passed > 30:
             return Response(
-                {"error": f"Return period expired. ({days_passed} days passed, limit is 30)."}, 
+                {"error": f"Return period expired. ({days_passed} days passed, limit is 30)."},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         order.status = 'return_requested'
         order.save()
 
-        return Response({"message": "Return request submitted. Waiting for approval."}, status=status.HTTP_200_OK)
+        return Response(
+            {"message": "Return request submitted. Waiting for approval."},
+            status=status.HTTP_200_OK
+        )
+
 
 @api_view(["PUT"])
 @permission_classes([IsAdminUser])
@@ -125,4 +136,41 @@ def admin_update_order_status(request, order_id):
         status=status.HTTP_200_OK
     )
 
-    
+
+
+
+class ApplyDiscountView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        user = request.user
+
+        
+        if getattr(user, "role", None) != "Sales Manager":
+            return Response(
+                {"detail": "Only Sales Manager can apply discount."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        order = get_object_or_404(Order, pk=pk)
+
+        
+        if order.status == "delivered":
+            return Response(
+                {"detail": "Cannot apply discount to delivered orders."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        discount = Decimal(request.data.get("discount_percentage", 0))
+
+        if discount < 0 or discount > 90:
+            return Response(
+                {"detail": "Discount must be between 0 and 90."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        order.discount_percentage = discount
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
