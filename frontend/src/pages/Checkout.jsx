@@ -36,7 +36,10 @@ export default function Checkout() {
   }, []);
 
   const totals = useMemo(() => {
-    const subtotal = cartItems.reduce((sum, item) => sum + Number(item.price || 0) * item.qty, 0);
+    const subtotal = cartItems.reduce((sum, item) => {
+      const qty = typeof item.qty === 'string' ? (Number(item.qty) || 1) : item.qty;
+      return sum + Number(item.price || 0) * qty;
+    }, 0);
     const shipping = cartItems.length ? (subtotal >= SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE) : 0;
     return {
       subtotal,
@@ -82,6 +85,16 @@ export default function Checkout() {
   }
 
   function handleQtyChange(productId, value) {
+    // Allow empty string temporarily for deletion
+    setCartItems((prev) =>
+      prev.map((item) =>
+        Number(item.productId) === Number(productId) ? { ...item, qty: value } : item
+      )
+    );
+  }
+
+  function handleQtyBlur(productId, value) {
+    // Validate and enforce minimum when user leaves the field
     const nextQty = Math.max(1, Number(value) || 1);
     updateGuestCartQty(productId, nextQty);
     setCartItems((prev) =>
@@ -100,6 +113,29 @@ export default function Checkout() {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleEmailChange(value) {
+    updateForm('email', value);
+  }
+
+  function validateEmail(email) {
+    if (!email) return true; // Email is optional
+    // Must have @, at least 2 letters after @, and end with .com
+    const emailRegex = /^[^\s@]+@[a-zA-Z]{2,}\.com$/;
+    return emailRegex.test(email);
+  }
+
+  function handleNameChange(value) {
+    // Remove numbers from the input
+    const filteredValue = value.replace(/[0-9]/g, '');
+    updateForm('full_name', filteredValue);
+  }
+
+  function handlePhoneChange(value) {
+    // Keep only numbers
+    const filteredValue = value.replace(/[^0-9]/g, '');
+    updateForm('phone', filteredValue);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -113,17 +149,26 @@ export default function Checkout() {
       setError("Please fill in the required shipping fields.");
       return;
     }
+    if (form.email && !validateEmail(form.email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
 
     setPlacing(true);
     try {
       const payload = {
-        items: cartItems.map((item) => ({
-          product_id: item.product?.id ?? item.productId,
-          productId: item.productId,
-          name: item.product?.name,
-          qty: item.qty,
-          price: item.price,
-        })),
+        items: cartItems.map((item) => {
+          // Ensure qty is a number, not a string
+          const qty = typeof item.qty === 'string' ? (Number(item.qty) || 1) : item.qty;
+          return {
+            product_id: item.product?.id ?? item.productId,
+            productId: item.productId,
+            name: item.product?.name,
+            qty: qty,
+            quantity: qty, // Also include as 'quantity' for API compatibility
+            price: item.price,
+          };
+        }),
         shipping: {
           full_name: form.full_name,
           address: form.address,
@@ -146,7 +191,18 @@ export default function Checkout() {
       setCartItems([]);
       setForm(INITIAL_FORM);
     } catch (err) {
-      setError(err.message || "Could not create the order.");
+      // Check if it's a network error
+      const isNetworkError = err.message?.includes('Network Error') || 
+                            err.message?.includes('network') ||
+                            err.code === 'ERR_NETWORK' ||
+                            err.code === 'ECONNABORTED' ||
+                            !err.response;
+      
+      if (isNetworkError) {
+        setError("Network Error: Unable to connect to the server. Please check if the backend is running or try again later.");
+      } else {
+        setError(err.message || "Could not create the order.");
+      }
     } finally {
       setPlacing(false);
     }
@@ -178,9 +234,31 @@ export default function Checkout() {
       </header>
 
       {error && <div className="alert error">{error}</div>}
+      
+      {/* Order Confirmation Modal */}
       {orderResult && (
-        <div className="alert success">
-          Order received! Your order number is <strong>{orderResult.id}</strong>
+        <div className="order-modal-overlay" onClick={() => setOrderResult(null)}>
+          <div className="order-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="order-modal-icon">✓</div>
+            <h2 className="order-modal-title">Order Confirmed!</h2>
+            <p className="order-modal-message">
+              Thank you for your purchase. Your order has been successfully placed.
+            </p>
+            <div className="order-modal-details">
+              <p><strong>Order Number:</strong> #{orderResult.id}</p>
+            </div>
+            <div className="order-modal-actions">
+              <Link to="/products" className="order-modal-btn primary">
+                Continue Shopping
+              </Link>
+              <button 
+                className="order-modal-btn secondary"
+                onClick={() => setOrderResult(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -201,12 +279,14 @@ export default function Checkout() {
                   </div>
                   <div className="cart-controls">
                     <label className="cart-qty">
-                      Qty:
+                      Quantity:
                       <input
                         type="number"
                         min="1"
                         value={item.qty}
                         onChange={(e) => handleQtyChange(item.productId, e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        onBlur={(e) => handleQtyBlur(item.productId, e.target.value)}
                       />
                     </label>
                     <button type="button" className="link danger" onClick={() => handleRemove(item.productId)}>
@@ -214,7 +294,7 @@ export default function Checkout() {
                     </button>
                   </div>
                   <div className="cart-subtotal">
-                    ${(item.price * item.qty).toFixed(2)}
+                    ${(item.price * (typeof item.qty === 'string' ? (Number(item.qty) || 1) : item.qty)).toFixed(2)}
                   </div>
                 </li>
               ))}
@@ -245,7 +325,7 @@ export default function Checkout() {
               <input
                 type="text"
                 value={form.full_name}
-                onChange={(e) => updateForm("full_name", e.target.value)}
+                onChange={(e) => handleNameChange(e.target.value)}
                 required
               />
             </label>
@@ -254,16 +334,24 @@ export default function Checkout() {
               <input
                 type="email"
                 value={form.email}
-                onChange={(e) => updateForm("email", e.target.value)}
-                placeholder="ornek@mail.com"
+                onChange={(e) => handleEmailChange(e.target.value)}
+                placeholder="example@mail.com"
+                pattern="[^\s@]+@[a-zA-Z]{2,}\.com"
+                title="Please enter a valid email address"
               />
+              {form.email && !validateEmail(form.email) && (
+                <span style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '4px' }}>
+                  Please enter a valid email address
+                </span>
+              )}
             </label>
             <label>
               Phone*
               <input
                 type="tel"
                 value={form.phone}
-                onChange={(e) => updateForm("phone", e.target.value)}
+                onChange={(e) => handlePhoneChange(e.target.value)}
+                inputMode="numeric"
                 required
               />
             </label>
