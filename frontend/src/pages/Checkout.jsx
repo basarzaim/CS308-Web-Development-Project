@@ -85,17 +85,32 @@ export default function Checkout() {
   }
 
   function handleQtyChange(productId, value) {
-    // Allow empty string temporarily for deletion
-    setCartItems((prev) =>
-      prev.map((item) =>
-        Number(item.productId) === Number(productId) ? { ...item, qty: value } : item
-      )
-    );
+    // Allow empty string or any input for editing - validate on blur
+    const numValue = Number(value);
+    if (value === '' || isNaN(numValue) || numValue < 1) {
+      // Allow empty or invalid input temporarily for editing
+      // Store as string temporarily so user can delete and type
+      setCartItems((prev) =>
+        prev.map((item) =>
+          Number(item.productId) === Number(productId) ? { ...item, qty: value === '' ? '' : (isNaN(numValue) ? value : numValue) } : item
+        )
+      );
+    } else {
+      // Valid number entered - update immediately
+      const nextQty = Math.max(1, numValue);
+      updateGuestCartQty(productId, nextQty);
+      setCartItems((prev) =>
+        prev.map((item) =>
+          Number(item.productId) === Number(productId) ? { ...item, qty: nextQty } : item
+        )
+      );
+    }
   }
 
   function handleQtyBlur(productId, value) {
-    // Validate and enforce minimum when user leaves the field
-    const nextQty = Math.max(1, Number(value) || 1);
+    // Validate and set minimum on blur - ensure we always have a valid number
+    const numValue = Number(value);
+    const nextQty = Math.max(1, numValue || 1);
     updateGuestCartQty(productId, nextQty);
     setCartItems((prev) =>
       prev.map((item) =>
@@ -111,6 +126,18 @@ export default function Checkout() {
 
   function updateForm(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handleNameChange(value) {
+    // Remove numbers from full name
+    const filtered = value.replace(/[0-9]/g, '');
+    updateForm('full_name', filtered);
+  }
+
+  function handlePhoneChange(value) {
+    // Allow only numbers in phone field
+    const filtered = value.replace(/[^0-9]/g, '');
+    updateForm('phone', filtered);
   }
 
   function handleEmailChange(value) {
@@ -150,7 +177,7 @@ export default function Checkout() {
       return;
     }
     if (form.email && !validateEmail(form.email)) {
-      setError("Please enter a valid email address.");
+      setError("Please enter a valid email address (must have at least 2 letters after @ and end with .com).");
       return;
     }
 
@@ -327,6 +354,7 @@ export default function Checkout() {
                 value={form.full_name}
                 onChange={(e) => handleNameChange(e.target.value)}
                 required
+                placeholder="Enter your full name"
               />
             </label>
             <label>
@@ -337,11 +365,11 @@ export default function Checkout() {
                 onChange={(e) => handleEmailChange(e.target.value)}
                 placeholder="example@mail.com"
                 pattern="[^\s@]+@[a-zA-Z]{2,}\.com"
-                title="Please enter a valid email address"
+                title="Email must have at least 2 letters after @ and end with .com"
               />
               {form.email && !validateEmail(form.email) && (
                 <span style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '4px' }}>
-                  Please enter a valid email address
+                  Email must have at least 2 letters after @ and end with .com
                 </span>
               )}
             </label>
@@ -351,8 +379,9 @@ export default function Checkout() {
                 type="tel"
                 value={form.phone}
                 onChange={(e) => handlePhoneChange(e.target.value)}
-                inputMode="numeric"
                 required
+                placeholder="Enter phone number"
+                inputMode="numeric"
               />
             </label>
             <label>
