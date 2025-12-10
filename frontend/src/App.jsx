@@ -4,6 +4,7 @@ import "./App.css";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { isAdmin } from "./utils/admin";
 import { getGuestCartCount } from "./stores/cart";
+import { getGuestWishlistCount } from "./stores/wishlist";
 
 // Pages
 import ProductList from "./pages/ProductList.jsx";
@@ -15,10 +16,12 @@ import Orders from "./pages/Orders.jsx";
 import Profile from "./pages/Profile.jsx";
 import CommentModeration from "./pages/CommentModeration.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
+import Wishlist from "./pages/Wishlist.jsx";
 
 function Navigation() {
   const { isAuthenticated, logout, user } = useAuth();
   const [cartCount, setCartCount] = useState(0);
+  const [wishlistCount, setWishlistCount] = useState(0);
 
   // Update cart count periodically
   useEffect(() => {
@@ -27,6 +30,16 @@ function Navigation() {
     };
     updateCartCount();
     const interval = setInterval(updateCartCount, 500);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Update wishlist count periodically
+  useEffect(() => {
+    const updateWishlistCount = () => {
+      setWishlistCount(getGuestWishlistCount());
+    };
+    updateWishlistCount();
+    const interval = setInterval(updateWishlistCount, 500);
     return () => clearInterval(interval);
   }, []);
 
@@ -51,6 +64,22 @@ function Navigation() {
       <circle cx="9" cy="21" r="1"></circle>
       <circle cx="20" cy="21" r="1"></circle>
       <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+    </svg>
+  );
+
+  // Heart icon SVG
+  const HeartIcon = ({ filled = false }) => (
+    <svg 
+      width="24" 
+      height="24" 
+      viewBox="0 0 24 24" 
+      fill={filled ? "currentColor" : "none"} 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
     </svg>
   );
 
@@ -123,7 +152,59 @@ function Navigation() {
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >Manage Orders</Link>}
       </div>
-      <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+        {/* Wishlist Button */}
+        <Link
+          to="/wishlist"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "rgba(255, 255, 255, 0.15)",
+            color: "#fff",
+            textDecoration: "none",
+            padding: "10px 16px",
+            borderRadius: "12px",
+            border: "2px solid rgba(255, 255, 255, 0.3)",
+            transition: "all 0.3s ease",
+            position: "relative",
+            fontWeight: 600
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.background = "rgba(255, 255, 255, 0.25)";
+            e.target.style.borderColor = "rgba(255, 255, 255, 0.5)";
+            e.target.style.transform = "translateY(-2px)";
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.background = "rgba(255, 255, 255, 0.15)";
+            e.target.style.borderColor = "rgba(255, 255, 255, 0.3)";
+            e.target.style.transform = "translateY(0)";
+          }}
+        >
+          <HeartIcon filled={false} />
+          <span>Wishlist</span>
+          {wishlistCount > 0 && (
+            <span style={{
+              position: "absolute",
+              top: "-6px",
+              right: "-6px",
+              background: "linear-gradient(135deg, #FF0066 0%, #CC0052 100%)",
+              color: "#fff",
+              borderRadius: "50%",
+              width: "20px",
+              height: "20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "11px",
+              fontWeight: 700,
+              border: "2px solid #fff",
+              boxShadow: "0 2px 8px rgba(255, 0, 102, 0.5)"
+            }}>
+              {wishlistCount > 99 ? '99+' : wishlistCount}
+            </span>
+          )}
+        </Link>
         {/* Shopping Cart Button */}
         <Link 
           to="/checkout" 
@@ -262,6 +343,7 @@ export default function App() {
           <Route path="/products" element={<ProductList />} />
           <Route path="/product/:id" element={<Product />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/wishlist" element={<Wishlist />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/orders" element={<Orders />} />

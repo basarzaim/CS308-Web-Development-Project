@@ -151,6 +151,18 @@ export default function Checkout() {
     return emailRegex.test(email);
   }
 
+  function handleNameChange(value) {
+    // Remove numbers from the input
+    const filteredValue = value.replace(/[0-9]/g, '');
+    updateForm('full_name', filteredValue);
+  }
+
+  function handlePhoneChange(value) {
+    // Keep only numbers
+    const filteredValue = value.replace(/[^0-9]/g, '');
+    updateForm('phone', filteredValue);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -172,13 +184,18 @@ export default function Checkout() {
     setPlacing(true);
     try {
       const payload = {
-        items: cartItems.map((item) => ({
-          product_id: item.product?.id ?? item.productId,
-          productId: item.productId,
-          name: item.product?.name,
-          qty: item.qty,
-          price: item.price,
-        })),
+        items: cartItems.map((item) => {
+          // Ensure qty is a number, not a string
+          const qty = typeof item.qty === 'string' ? (Number(item.qty) || 1) : item.qty;
+          return {
+            product_id: item.product?.id ?? item.productId,
+            productId: item.productId,
+            name: item.product?.name,
+            qty: qty,
+            quantity: qty, // Also include as 'quantity' for API compatibility
+            price: item.price,
+          };
+        }),
         shipping: {
           full_name: form.full_name,
           address: form.address,
@@ -201,7 +218,18 @@ export default function Checkout() {
       setCartItems([]);
       setForm(INITIAL_FORM);
     } catch (err) {
-      setError(err.message || "Could not create the order.");
+      // Check if it's a network error
+      const isNetworkError = err.message?.includes('Network Error') || 
+                            err.message?.includes('network') ||
+                            err.code === 'ERR_NETWORK' ||
+                            err.code === 'ECONNABORTED' ||
+                            !err.response;
+      
+      if (isNetworkError) {
+        setError("Network Error: Unable to connect to the server. Please check if the backend is running or try again later.");
+      } else {
+        setError(err.message || "Could not create the order.");
+      }
     } finally {
       setPlacing(false);
     }
@@ -233,9 +261,31 @@ export default function Checkout() {
       </header>
 
       {error && <div className="alert error">{error}</div>}
+      
+      {/* Order Confirmation Modal */}
       {orderResult && (
-        <div className="alert success">
-          Order received! Your order number is <strong>{orderResult.id}</strong>
+        <div className="order-modal-overlay" onClick={() => setOrderResult(null)}>
+          <div className="order-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="order-modal-icon">✓</div>
+            <h2 className="order-modal-title">Order Confirmed!</h2>
+            <p className="order-modal-message">
+              Thank you for your purchase. Your order has been successfully placed.
+            </p>
+            <div className="order-modal-details">
+              <p><strong>Order Number:</strong> #{orderResult.id}</p>
+            </div>
+            <div className="order-modal-actions">
+              <Link to="/products" className="order-modal-btn primary">
+                Continue Shopping
+              </Link>
+              <button 
+                className="order-modal-btn secondary"
+                onClick={() => setOrderResult(null)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -262,8 +312,8 @@ export default function Checkout() {
                         min="1"
                         value={item.qty}
                         onChange={(e) => handleQtyChange(item.productId, e.target.value)}
-                        onBlur={(e) => handleQtyBlur(item.productId, e.target.value)}
                         onFocus={(e) => e.target.select()}
+                        onBlur={(e) => handleQtyBlur(item.productId, e.target.value)}
                       />
                     </label>
                     <button type="button" className="link danger" onClick={() => handleRemove(item.productId)}>
