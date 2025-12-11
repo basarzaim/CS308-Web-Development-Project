@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import api from "../lib/api";
+import { api } from "../api/client";
 
 export default function Register() {
   const nav = useNavigate();
@@ -30,7 +30,6 @@ export default function Register() {
         (typeof r?.data === "string" ? r.data : JSON.stringify(r?.data)) ||
         e.message;
       setErr(msg);
-      console.error("REGISTER ERROR:", r?.status, r?.data);
     }
   }
 

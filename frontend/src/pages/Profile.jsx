@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { updateUserProfile } from "../api/users";
+// ESKİ: updateUserProfile ../api/users'tan geliyordu
+// import { updateUserProfile } from "../api/users";
+import { getProfile, updateProfile } from "../services/auth";
 import "./Profile.css";
 
 export default function Profile() {
   const { user, isAuthenticated, updateUser } = useAuth();
+
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true); // profil ilk yüklenirken
+  const [loading, setLoading] = useState(false); // form kaydederken
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -14,25 +18,62 @@ export default function Profile() {
     first_name: "",
     last_name: "",
     phone: "",
-    address: ""
+    address: "",
   });
 
+  // Profil bilgisini backend'den çek
   useEffect(() => {
-    if (user) {
-      setFormData({
-        first_name: user.first_name || "",
-        last_name: user.last_name || "",
-        phone: user.phone || "",
-        address: user.address || ""
-      });
+    if (!isAuthenticated) {
+      setInitialLoading(false);
+      return;
     }
-  }, [user]);
+
+    let active = true;
+    setError("");
+    setSuccess("");
+    setInitialLoading(true);
+
+    getProfile()
+      .then((data) => {
+        if (!active) return;
+
+        // Formu doldur
+        setFormData({
+          first_name: data.first_name || "",
+          last_name: data.last_name || "",
+          phone: data.phone || "",
+          address: data.address || "",
+        });
+
+        // Context'teki user bilgisini de güncelle
+        if (updateUser) {
+          updateUser(data);
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        const r = err?.response;
+        setError(
+          r?.data?.detail ||
+            r?.data?.message ||
+            err.message ||
+            "Failed to load profile."
+        );
+      })
+      .finally(() => {
+        if (active) setInitialLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [isAuthenticated, updateUser]);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -42,12 +83,21 @@ export default function Profile() {
 
     try {
       setLoading(true);
-      const updatedData = await updateUserProfile(formData);
-      updateUser(updatedData);
+      // ESKİ: updateUserProfile(formData)
+      const updatedData = await updateProfile(formData);
+      if (updateUser) {
+        updateUser(updatedData);
+      }
       setSuccess("Profile updated successfully");
       setEditing(false);
     } catch (err) {
-      setError(err.message);
+      const r = err?.response;
+      setError(
+        r?.data?.detail ||
+          r?.data?.message ||
+          err.message ||
+          "Failed to update profile."
+      );
     } finally {
       setLoading(false);
     }
@@ -59,11 +109,12 @@ export default function Profile() {
         first_name: user.first_name || "",
         last_name: user.last_name || "",
         phone: user.phone || "",
-        address: user.address || ""
+        address: user.address || "",
       });
     }
     setEditing(false);
     setError("");
+    setSuccess("");
   };
 
   if (!isAuthenticated) {
@@ -72,9 +123,18 @@ export default function Profile() {
         <div className="profile-header">
           <h1>My Profile</h1>
         </div>
-        <div className="alert error">
-          Please log in to view your profile.
+        <div className="alert error">Please log in to view your profile.</div>
+      </div>
+    );
+  }
+
+  if (initialLoading) {
+    return (
+      <div className="profile-page">
+        <div className="profile-header">
+          <h1>My Profile</h1>
         </div>
+        <p>Loading your profile…</p>
       </div>
     );
   }
@@ -106,7 +166,10 @@ export default function Profile() {
             <div className="section-header">
               <h2>Personal Information</h2>
               {!editing && (
-                <button className="btn-secondary" onClick={() => setEditing(true)}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => setEditing(true)}
+                >
                   Edit
                 </button>
               )}
@@ -180,19 +243,27 @@ export default function Profile() {
               <div className="info-display">
                 <div className="info-row">
                   <span className="info-label">First Name:</span>
-                  <span className="info-value">{user?.first_name || "Not set"}</span>
+                  <span className="info-value">
+                    {user?.first_name || "Not set"}
+                  </span>
                 </div>
                 <div className="info-row">
                   <span className="info-label">Last Name:</span>
-                  <span className="info-value">{user?.last_name || "Not set"}</span>
+                  <span className="info-value">
+                    {user?.last_name || "Not set"}
+                  </span>
                 </div>
                 <div className="info-row">
                   <span className="info-label">Phone:</span>
-                  <span className="info-value">{user?.phone || "Not set"}</span>
+                  <span className="info-value">
+                    {user?.phone || "Not set"}
+                  </span>
                 </div>
                 <div className="info-row">
                   <span className="info-label">Address:</span>
-                  <span className="info-value">{user?.address || "Not set"}</span>
+                  <span className="info-value">
+                    {user?.address || "Not set"}
+                  </span>
                 </div>
               </div>
             )}

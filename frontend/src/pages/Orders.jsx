@@ -5,7 +5,6 @@ import "./Orders.css";
 
 export default function Orders() {
   const { isAuthenticated, loading: authLoading } = useAuth();
-  console.log("Orders component - Auth state:", { isAuthenticated, authLoading });
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,13 +27,14 @@ export default function Orders() {
       try {
         setLoading(true);
         setError("");
-        console.log("Fetching orders...");
         const data = await fetchUserOrders();
-        console.log("Orders fetched:", data);
-        setOrders(data || []);
+        // Ensure data is an array
+        const ordersArray = Array.isArray(data) ? data : [];
+        setOrders(ordersArray);
       } catch (err) {
-        console.error("Error fetching orders:", err);
+        console.error("Error loading orders:", err);
         setError(err.message || "Failed to load orders");
+        setOrders([]); // Set empty array on error
       } finally {
         setLoading(false);
       }
@@ -81,6 +81,7 @@ export default function Orders() {
     const statusMap = {
       pending: { label: "Pending", className: "status-pending" },
       processing: { label: "Processing", className: "status-processing" },
+      "in-transit": { label: "In Transit", className: "status-shipped" },
       shipped: { label: "Shipped", className: "status-shipped" },
       delivered: { label: "Delivered", className: "status-delivered" },
       cancelled: { label: "Cancelled", className: "status-cancelled" },
@@ -167,7 +168,7 @@ export default function Orders() {
                       <p className="item-qty">Qty: {item.quantity}</p>
                     </div>
                     <div className="item-price">
-                      ${(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}
+                      ${(Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -186,11 +187,17 @@ export default function Orders() {
               <div className="order-summary">
                 <div className="summary-row">
                   <span>Subtotal:</span>
-                  <span>${Number(order.subtotal || 0).toFixed(2)}</span>
+                  <span>${Number(order.total_price || order.subtotal || 0).toFixed(2)}</span>
                 </div>
+                {order.discounted_total_price && order.discounted_total_price !== order.total_price && (
+                  <div className="summary-row">
+                    <span>Discount:</span>
+                    <span>-${(Number(order.total_price) - Number(order.discounted_total_price)).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="summary-row total">
                   <span>Total:</span>
-                  <span>${Number(order.total || 0).toFixed(2)}</span>
+                  <span>${Number(order.discounted_total_price || order.total_price || order.total || 0).toFixed(2)}</span>
                 </div>
               </div>
 

@@ -1,23 +1,45 @@
 // src/pages/ProductList.jsx
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchProducts, fetchCategories } from "../api/products";
+import { fetchCategories } from "../api/products";
 import useDebounce from "../hooks/useDebounce";
 import SkeletonGrid from "../components/SkeletonGrid.jsx";
-import { toggleGuestWishlist, isInGuestWishlist, getGuestWishlist } from "../stores/wishlist";
+import { toggleWishlist, getWishlist, isInWishlist } from "../stores/wishlist";
+import { getProducts } from "../services/products";
+import { useAuth } from "../context/AuthContext";
 import "./ProductList.css";
 
+// Sabit renk listesi – component dışına aldım
+const COLOR_OPTIONS = [
+  "Black",
+  "White",
+  "Red",
+  "Blue",
+  "Green",
+  "Yellow",
+  "Orange",
+  "Purple",
+  "Pink",
+  "Gray",
+  "Brown",
+  "Silver",
+  "Gold",
+];
+
 export default function ProductList() {
+  const { isAuthenticated } = useAuth();
   // UI state
   const [search, setSearch] = useState("");
   const debounced = useDebounce(search, 350);
-  const [category, setCategory] = useState("");   // slug
+  const [category, setCategory] = useState(""); // slug
   const [brand, setBrand] = useState("");
   const [color, setColor] = useState("");
   const [sort, setSort] = useState("featured");
   const [pageSize, setPageSize] = useState(12);
   const [page, setPage] = useState(1);
-  const [wishlistUpdate, setWishlistUpdate] = useState(0); // Force re-render on wishlist change
+  const [wishlistItems, setWishlistItems] = useState(new Set());
+  const [wishlistLoading, setWishlistLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // data state
   const [cats, setCats] = useState([]);
@@ -25,127 +47,165 @@ export default function ProductList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // fetch categories
+  // Backend ordering key map
+  const getBackendOrdering = (sortKey) => {
+    switch (sortKey) {
+      case "price-asc":
+        return "price";
+      case "price-desc":
+        return "-price";
+      case "rating-desc":
+        return "-rating"; // Backend'de 'rating' alanı varsa
+      case "name-asc":
+        return "name"; // Backend'de 'name' alanı varsa
+      case "name-desc":
+        return "-name";
+      default:
+        return ""; // featured durumu
+    }
+  };
+
+  // Load wishlist on mount and when auth changes
+  useEffect(() => {
+    async function loadWishlist() {
+      setWishlistLoading(true);
+      try {
+        const items = await getWishlist();
+        setWishlistItems(new Set(items.map(String)));
+      } catch (err) {
+        console.error("Error loading wishlist:", err);
+        setWishlistItems(new Set());
+      } finally {
+        setWishlistLoading(false);
+      }
+    }
+    loadWishlist();
+  }, [isAuthenticated]);
+
+  // fetch categories (independent of products - can load in parallel)
   useEffect(() => {
     let ignore = false;
     fetchCategories()
       .then((d) => {
-        const list = (d?.results || d || []).map((c, i) => ({
+        const raw = d?.results || d || [];
+        const list = raw.map((c, i) => ({
           slug: c.slug ?? String(c.id ?? i + 1),
           name: c.name ?? String(c.slug ?? `Cat ${i + 1}`),
           product_count: c.product_count,
         }));
         if (!ignore) setCats(list);
       })
-      .catch(() => {});
-    return () => { ignore = true; };
+      .catch((err) => {
+        console.error("Error fetching categories:", err);
+      });
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   // fetch products
   useEffect(() => {
+    let ignore = false;
     setLoading(true);
-    fetchProducts({ page, limit: pageSize, q: debounced })
-      .then(({ items, total }) => {
-        setItems(items || []);
-        setTotal(Number(total) || 0);
-      })
-      .catch(() => {
-        // keep UI simple; suppress specific error messages
-        setItems([]);
-        setTotal(0);
-      })
-      .finally(() => setLoading(false));
-  }, [page, pageSize, debounced]);
+    setError(null);
 
-  // Get unique brands and colors from products
+    const params = {
+      page,
+      page_size: pageSize, // DRF standard
+      search: debounced || undefined,
+      category: category || undefined,
+      ordering: getBackendOrdering(sort) || undefined,
+      // Backend'de destekliyorsan:
+      brand: brand || undefined,
+      color: color || undefined,
+    };
+
+    getProducts(params)
+      .then((data) => {
+        if (ignore) return;
+
+        // DRF: { count, results: [...] }
+        if (data && Array.isArray(data.results)) {
+          setItems(data.results);
+          setTotal(typeof data.count === "number" ? data.count : data.results.length);
+        }
+        // Direkt array dönerse (pagination yok)
+        else if (Array.isArray(data)) {
+          setItems(data);
+          setTotal(data.length);
+        }
+        // Beklenmedik format
+        else {
+          console.error("Unexpected products response format:", data);
+          setItems([]);
+          setTotal(0);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching products:", err);
+        if (!ignore) {
+          setItems([]);
+          setTotal(0);
+          setError("Products could not be loaded. Please try again later.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, [page, pageSize, debounced, category, sort, brand, color]);
+
+  // Marka listesi – mevcut ürünlerden derive et
   const availableBrands = useMemo(() => {
     const brands = new Set();
-    items.forEach(p => {
+    items.forEach((p) => {
       if (p.brand) brands.add(p.brand);
     });
     return Array.from(brands).sort();
   }, [items]);
 
-  const availableColors = useMemo(() => {
-    const colors = [
-      "Black", "White", "Red", "Blue", "Green", "Yellow", "Orange", 
-      "Purple", "Pink", "Gray", "Brown", "Silver", "Gold"
-    ];
-    return colors;
-  }, []);
+  const availableColors = COLOR_OPTIONS;
 
-  // optional client-side category filter + sort
-  const filtered = useMemo(() => {
-    let list = [...items];
-    
-    // Apply category filter
-    if (category) {
-      list = list.filter((p) => (p.category?.slug || p.category) === category);
-    }
-    
-    // Apply brand filter
-    if (brand) {
-      list = list.filter((p) => p.brand === brand);
-    }
-    
-    // Apply color filter (for now, we'll filter by name containing color - in real app, products would have color field)
-    if (color) {
-      list = list.filter((p) => {
-        const nameLower = (p.name || "").toLowerCase();
-        return nameLower.includes(color.toLowerCase());
-      });
-    }
-    
-    // Apply sorting
-    switch (sort) {
-      case "price-asc":
-        list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
-        break;
-      case "price-desc":
-        list.sort((a, b) => Number(b.price || 0) - Number(a.price || 0));
-        break;
-      case "name-asc":
-        list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        break;
-      case "name-desc":
-        list.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        break;
-      case "rating-desc":
-        list.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
-        break;
-      default:
-        // "featured" - keep original order
-        break;
-    }
-    
-    return list;
-  }, [items, category, brand, color, sort]);
+  const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
 
-  const totalPages = Math.max(1, Math.ceil((category || brand || color ? filtered.length : total) / pageSize));
-
-  // Get current wishlist items to ensure re-render when wishlist changes
-  const wishlistItems = useMemo(() => {
-    // This will be recalculated when wishlistUpdate changes
-    return getGuestWishlist();
-  }, [wishlistUpdate]);
-
-  // pagination helper
+  // Pagination helper
   const go = (n) => setPage(Math.min(Math.max(1, n), totalPages));
 
-  if (loading) return <SkeletonGrid count={pageSize} />;
+  // Wishlist toggle handler
+  const handleToggleWishlist = async (productId) => {
+    try {
+      await toggleWishlist(productId);
+      // Refresh wishlist state
+      const items = await getWishlist();
+      setWishlistItems(new Set(items.map(String)));
+    } catch (err) {
+      console.error("Error toggling wishlist:", err);
+    }
+  };
+
+  if (loading) {
+    // İstersen burayı değiştirebiliriz ama şimdilik tüm sayfa skeleton
+    return <SkeletonGrid count={pageSize} />;
+  }
 
   return (
     <div className="pl-container">
+      {/* Hata mesajı */}
+      {error && <div className="pl-error">{error}</div>}
+
       {/* Search Bar - Centered at Top */}
       <div className="pl-search-container">
         <div className="pl-search-wrapper">
-          <svg 
-            className="pl-search-icon" 
-            width="20" 
-            height="20" 
-            viewBox="0 0 24 24" 
-            fill="none" 
-            stroke="#FF9500" 
+          <svg
+            className="pl-search-icon"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#FF9500"
             strokeWidth="2.5"
           >
             <circle cx="11" cy="11" r="8"></circle>
@@ -155,7 +215,10 @@ export default function ProductList() {
             className="pl-input"
             placeholder="Search for products, brands, and more..."
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
       </div>
@@ -166,7 +229,7 @@ export default function ProductList() {
           <div className="pl-sidebar-header">
             <h3>Filters</h3>
             {(category || brand || color) && (
-              <button 
+              <button
                 className="pl-clear-filters"
                 onClick={() => {
                   setCategory("");
@@ -186,12 +249,16 @@ export default function ProductList() {
               <select
                 className="pl-select"
                 value={category}
-                onChange={(e) => { setCategory(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setPage(1);
+                }}
               >
                 <option value="">All categories</option>
                 {cats.map((c) => (
                   <option key={c.slug} value={c.slug}>
-                    {c.name}{c.product_count != null ? ` (${c.product_count})` : ""}
+                    {c.name}
+                    {c.product_count != null ? ` (${c.product_count})` : ""}
                   </option>
                 ))}
               </select>
@@ -204,11 +271,16 @@ export default function ProductList() {
               <select
                 className="pl-select"
                 value={brand}
-                onChange={(e) => { setBrand(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setBrand(e.target.value);
+                  setPage(1);
+                }}
               >
                 <option value="">All brands</option>
                 {availableBrands.map((b) => (
-                  <option key={b} value={b}>{b}</option>
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
                 ))}
               </select>
             </label>
@@ -220,11 +292,16 @@ export default function ProductList() {
               <select
                 className="pl-select"
                 value={color}
-                onChange={(e) => { setColor(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setColor(e.target.value);
+                  setPage(1);
+                }}
               >
                 <option value="">All colors</option>
                 {availableColors.map((c) => (
-                  <option key={c} value={c}>{c}</option>
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
                 ))}
               </select>
             </label>
@@ -236,7 +313,10 @@ export default function ProductList() {
               <select
                 className="pl-select"
                 value={sort}
-                onChange={(e) => { setSort(e.target.value); setPage(1); }}
+                onChange={(e) => {
+                  setSort(e.target.value);
+                  setPage(1);
+                }}
               >
                 <option value="featured">Featured</option>
                 <option value="price-asc">Price: Low to High</option>
@@ -254,10 +334,16 @@ export default function ProductList() {
               <select
                 className="pl-select"
                 value={pageSize}
-                onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                onChange={(e) => {
+                  const val = Number(e.target.value) || 12;
+                  setPageSize(val);
+                  setPage(1);
+                }}
               >
                 {[8, 12, 16, 24, 36].map((n) => (
-                  <option key={n} value={n}>{n} per page</option>
+                  <option key={n} value={n}>
+                    {n} per page
+                  </option>
                 ))}
               </select>
             </label>
@@ -268,17 +354,20 @@ export default function ProductList() {
         <div className="pl-content-area">
           {/* Header */}
           <header className="pl-header">
-            <h2 className="pl-title">Products <span className="pl-count">{category ? filtered.length : total}</span></h2>
+            <h2 className="pl-title">
+              Products <span className="pl-count">{total}</span>
+            </h2>
           </header>
 
           {/* Grid */}
-          {filtered.length === 0 ? (
+          {items.length === 0 ? (
             <div className="pl-empty">No results found. Try adjusting your filters.</div>
           ) : (
             <section className="pl-grid">
-              {filtered.map((p) => {
-                // Check wishlist status - use wishlistItems array for reliable updates
-                const inWishlist = wishlistItems.includes(p.id);
+              {items.map((p) => {
+                const idStr = String(p.id);
+                const inWishlist = wishlistItems.has(idStr);
+
                 return (
                   <div key={p.id} className="pl-card-wrapper">
                     <Link
@@ -286,27 +375,37 @@ export default function ProductList() {
                       to={`/product/${p.id}`}
                       aria-label={`Open ${p.name} detail page`}
                     >
-                      <img className="pl-thumb" src={p.image || p.image_url} alt={p.name} loading="lazy" />
+                      <img
+                        className="pl-thumb"
+                        src={p.image || p.image_url}
+                        alt={p.name}
+                        loading="lazy"
+                      />
                       <div className="pl-content">
-                        <h3 className="pl-name" title={p.name}>{p.name}</h3>
+                        <h3 className="pl-name" title={p.name}>
+                          {p.name}
+                        </h3>
                         <div className="pl-meta">
                           <span className="pl-price">
-                            ${Number(p.price).toFixed(2)}
+                            ${Number(p.price || 0).toFixed(2)}
                           </span>
-                          {p.rating != null && <span className="pl-rating">⭐ {p.rating}</span>}
+                          {p.rating != null && (
+                            <span className="pl-rating">⭐ {p.rating}</span>
+                          )}
                         </div>
                       </div>
                     </Link>
+
                     <button
-                      className={`pl-wishlist-btn ${inWishlist ? 'active' : ''}`}
+                      className={`pl-wishlist-btn ${inWishlist ? "active" : ""}`}
                       onClick={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
-                        toggleGuestWishlist(p.id);
-                        // Force re-render by updating state
-                        setWishlistUpdate(prev => prev + 1);
+                        handleToggleWishlist(p.id);
                       }}
-                      aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
+                      aria-label={
+                        inWishlist ? "Remove from wishlist" : "Add to wishlist"
+                      }
                     >
                       <svg
                         width="20"
@@ -329,9 +428,23 @@ export default function ProductList() {
 
           {/* Pager */}
           <nav className="pl-pager" aria-label="Pagination">
-            <button className="pl-btn" disabled={page <= 1} onClick={() => go(page - 1)}>‹</button>
-            <span className="pl-pageinfo">{page} / {totalPages}</span>
-            <button className="pl-btn" disabled={page >= totalPages} onClick={() => go(page + 1)}>›</button>
+            <button
+              className="pl-btn"
+              disabled={page <= 1}
+              onClick={() => go(page - 1)}
+            >
+              ‹
+            </button>
+            <span className="pl-pageinfo">
+              {page} / {totalPages}
+            </span>
+            <button
+              className="pl-btn"
+              disabled={page >= totalPages}
+              onClick={() => go(page + 1)}
+            >
+              ›
+            </button>
           </nav>
         </div>
       </div>

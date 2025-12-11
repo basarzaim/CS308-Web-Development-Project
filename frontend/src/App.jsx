@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import "./App.css";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { isAdmin } from "./utils/admin";
-import { getGuestCartCount } from "./stores/cart";
-import { getGuestWishlistCount } from "./stores/wishlist";
+import { getCartCount } from "./stores/cart";
+import { getWishlistCount } from "./stores/wishlist";
 
 // Pages
 import ProductList from "./pages/ProductList.jsx";
@@ -23,25 +23,43 @@ function Navigation() {
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
 
-  // Update cart count periodically
+  // Update cart count on mount and when auth changes (no polling)
   useEffect(() => {
-    const updateCartCount = () => {
-      setCartCount(getGuestCartCount());
+    const updateCartCount = async () => {
+      const count = await getCartCount();
+      setCartCount(count);
     };
     updateCartCount();
-    const interval = setInterval(updateCartCount, 500);
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Listen for cart changes via storage events (for guest cart) or custom events
+    const handleStorageChange = () => updateCartCount();
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('cartUpdated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('cartUpdated', handleStorageChange);
+    };
+  }, [isAuthenticated]);
 
-  // Update wishlist count periodically
+  // Update wishlist count on mount and when auth changes (no polling)
   useEffect(() => {
-    const updateWishlistCount = () => {
-      setWishlistCount(getGuestWishlistCount());
+    const updateWishlistCount = async () => {
+      const count = await getWishlistCount();
+      setWishlistCount(count);
     };
     updateWishlistCount();
-    const interval = setInterval(updateWishlistCount, 500);
-    return () => clearInterval(interval);
-  }, []);
+    
+    // Listen for wishlist changes via storage events (for guest wishlist) or custom events
+    const handleStorageChange = () => updateWishlistCount();
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('wishlistUpdated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('wishlistUpdated', handleStorageChange);
+    };
+  }, [isAuthenticated]);
 
   const handleLogout = () => {
     logout();

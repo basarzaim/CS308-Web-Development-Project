@@ -3,11 +3,13 @@ import { Link } from "react-router-dom";
 import { fetchProductById } from "../api/products";
 import { createOrder } from "../api/orders";
 import {
-  getGuestCart,
-  updateGuestCartQty,
-  removeFromGuestCart,
+  getCart,
+  updateCartQty,
+  removeFromCart,
   clearGuestCart,
+  clearCart,
 } from "../stores/cart";
+import { useAuth } from "../context/AuthContext";
 import "./Checkout.css";
 
 const INITIAL_FORM = {
@@ -24,6 +26,7 @@ const SHIPPING_THRESHOLD = 1000;
 const SHIPPING_FEE = 49.9;
 
 export default function Checkout() {
+  const { isAuthenticated } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,7 +36,7 @@ export default function Checkout() {
 
   useEffect(() => {
     hydrateCart();
-  }, []);
+  }, [isAuthenticated]);
 
   const totals = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => {
@@ -51,40 +54,55 @@ export default function Checkout() {
   async function hydrateCart() {
     setLoading(true);
     setError("");
-    const rawItems = getGuestCart();
-    if (!rawItems.length) {
-      setCartItems([]);
-      setLoading(false);
-      return;
-    }
     try {
+      const rawItems = await getCart();
+      if (!rawItems.length) {
+        setCartItems([]);
+        setLoading(false);
+        return;
+      }
+      // Cart API already returns name and price - no need to fetch product details
+      // Only fetch if we're missing critical data
       const hydrated = await Promise.all(
         rawItems.map(async (entry) => {
+          // If we already have name and price from cart API, use them
+          if (entry.name && entry.price) {
+            return {
+              ...entry,
+              product: { 
+                id: entry.productId, 
+                name: entry.name,
+                price: entry.price 
+              },
+              price: Number(entry.price || 0),
+            };
+          }
+          // Fallback: fetch product details only if missing
           try {
             const product = await fetchProductById(entry.productId);
             return {
               ...entry,
               product,
-              price: Number(product.price ?? 0),
+              price: Number(entry.price || product.price || 0),
             };
           } catch {
             return {
               ...entry,
-              product: { id: entry.productId, name: `Product #${entry.productId}` },
-              price: 0,
+              product: { id: entry.productId, name: entry.name || `Product #${entry.productId}` },
+              price: Number(entry.price || 0),
             };
           }
         })
       );
       setCartItems(hydrated);
     } catch (err) {
-      setError(err.message || "Sepet bilgileri getirilemedi.");
+      setError(err.message || "Failed to load cart.");
     } finally {
       setLoading(false);
     }
   }
 
-  function handleQtyChange(productId, value) {
+  async function handleQtyChange(productId, value) {
     // Allow empty string or any input for editing - validate on blur
     const numValue = Number(value);
     if (value === '' || isNaN(numValue) || numValue < 1) {
@@ -98,7 +116,7 @@ export default function Checkout() {
     } else {
       // Valid number entered - update immediately
       const nextQty = Math.max(1, numValue);
-      updateGuestCartQty(productId, nextQty);
+      await updateCartQty(productId, nextQty);
       setCartItems((prev) =>
         prev.map((item) =>
           Number(item.productId) === Number(productId) ? { ...item, qty: nextQty } : item
@@ -107,11 +125,11 @@ export default function Checkout() {
     }
   }
 
-  function handleQtyBlur(productId, value) {
+  async function handleQtyBlur(productId, value) {
     // Validate and set minimum on blur - ensure we always have a valid number
     const numValue = Number(value);
     const nextQty = Math.max(1, numValue || 1);
-    updateGuestCartQty(productId, nextQty);
+    await updateCartQty(productId, nextQty);
     setCartItems((prev) =>
       prev.map((item) =>
         Number(item.productId) === Number(productId) ? { ...item, qty: nextQty } : item
@@ -119,8 +137,8 @@ export default function Checkout() {
     );
   }
 
-  function handleRemove(productId) {
-    removeFromGuestCart(productId);
+  async function handleRemove(productId) {
+    await removeFromCart(productId);
     setCartItems((prev) => prev.filter((item) => Number(item.productId) !== Number(productId)));
   }
 
@@ -214,7 +232,17 @@ export default function Checkout() {
 
       const order = await createOrder(payload);
       setOrderResult(order);
-      clearGuestCart();
+      
+      // Clear cart after successful order
+      if (isAuthenticated) {
+        // Clear backend cart for authenticated users
+        await clearCart();
+      } else {
+        // Clear localStorage cart for guest users
+        clearGuestCart();
+      }
+      
+      // Clear local state
       setCartItems([]);
       setForm(INITIAL_FORM);
     } catch (err) {
