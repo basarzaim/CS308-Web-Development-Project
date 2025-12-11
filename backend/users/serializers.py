@@ -1,0 +1,40 @@
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from .models import Customer
+
+Customer = get_user_model()
+
+class CustomerProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Customer
+        fields = [
+            "id",
+            "email",
+            "username",
+            "first_name",
+            "last_name",
+        ]
+        read_only_fields = ["id", "email", "username"]
+
+class RegisterSerializer(serializers.ModelSerializer):
+    password = serializers.CharField(write_only=True, min_length=8)
+
+    class Meta:
+        model = Customer
+        fields = ("id", "email", "username", "password", "first_name", "last_name")
+
+    def create(self, validated_data):
+        password = validated_data.pop("password")
+        user = Customer(**validated_data)
+        user.set_password(password)  # 🔒 Şifre burada güvenli şekilde hashleniyor
+        user.save()
+        return user
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    address = serializers.CharField(source='home_address', allow_blank=True, required=False)
+
+    class Meta:
+        model = Customer
+        fields = ("id", "email", "username", "first_name", "last_name", "phone", "address", "taxID", "home_address")
+        read_only_fields = ("id", "email")

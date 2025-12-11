@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py makemigrations:*)",
+      "Bash(python manage.py migrate:*)",
+      "Bash(python manage.py runserver:*)",
+      "Bash(cat:*)",
+      "Bash(curl:*)",
+      "Bash(python manage.py shell:*)",
+      "Bash(git checkout:*)",
+      "Bash(pip install:*)",
+      "Bash(git add:*)",
+      "Bash(where:*)",
+      "Bash(powershell:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(find:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(rsync:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

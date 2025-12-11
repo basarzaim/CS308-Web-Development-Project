@@ -1,0 +1,347 @@
+import { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { fetchUserOrders, cancelOrder, returnOrder } from "../api/orders";
+import "./Orders.css";
+
+export default function Orders() {
+  const { isAuthenticated, loading: authLoading } = useAuth();
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [actionLoading, setActionLoading] = useState(null);
+
+  useEffect(() => {
+    // Wait for auth to finish loading
+    if (authLoading) {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
+    async function loadOrders() {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await fetchUserOrders();
+        // Ensure data is an array
+        const ordersArray = Array.isArray(data) ? data : [];
+        setOrders(ordersArray);
+      } catch (err) {
+        console.error("Error loading orders:", err);
+        setError(err.message || "Failed to load orders");
+        setOrders([]); // Set empty array on error
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadOrders();
+  }, [isAuthenticated, authLoading]);
+
+  const handleCancel = async (orderId) => {
+    if (!confirm("Are you sure you want to cancel this order?")) return;
+
+    try {
+      setActionLoading(orderId);
+      setError("");
+      setNotice("");
+      const updatedOrder = await cancelOrder(orderId);
+      setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      setNotice("Order cancelled successfully");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReturn = async (orderId) => {
+    if (!confirm("Are you sure you want to request a return for this order?")) return;
+
+    try {
+      setActionLoading(orderId);
+      setError("");
+      setNotice("");
+      const updatedOrder = await returnOrder(orderId);
+      setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      setNotice("Return request submitted successfully");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      pending: { label: "Pending", className: "status-pending" },
+      processing: { label: "Processing", className: "status-processing" },
+      "in-transit": { label: "In Transit", className: "status-shipped" },
+      shipped: { label: "Shipped", className: "status-shipped" },
+      delivered: { label: "Delivered", className: "status-delivered" },
+      cancelled: { label: "Cancelled", className: "status-cancelled" },
+      return_requested: { label: "Return Requested", className: "status-return" },
+      returned: { label: "Returned", className: "status-returned" }
+    };
+
+    const { label, className } = statusMap[status] || { label: status, className: "status-default" };
+    return <span className={`status-badge ${className}`}>{label}</span>;
+  };
+
+  const canCancel = (status) => {
+    return ["pending", "processing"].includes(status);
+  };
+
+  const canReturn = (status) => {
+    return status === "delivered";
+  };
+
+  const handleDownloadInvoice = (order) => {
+    // Generate invoice HTML
+    const invoiceHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice #${order.id}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+    .invoice-header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
+    .invoice-header h1 { color: #2563eb; margin: 0; font-size: 2.5rem; }
+    .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+    .invoice-section { background: #f8fafc; padding: 15px; border-radius: 8px; }
+    .invoice-section h3 { margin: 0 0 10px 0; color: #0f172a; }
+    .invoice-section p { margin: 5px 0; color: #475569; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th { background: #2563eb; color: white; padding: 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover { background: #f8fafc; }
+    .totals { margin-top: 30px; float: right; width: 300px; }
+    .totals div { display: flex; justify-content: space-between; padding: 8px; }
+    .totals .total { font-weight: bold; font-size: 1.2rem; border-top: 2px solid #2563eb; margin-top: 10px; padding-top: 10px; }
+    .discount { color: #16a34a; font-weight: 600; }
+    .footer { margin-top: 60px; text-align: center; color: #94a3b8; font-size: 0.9rem; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="invoice-header">
+    <h1>INVOICE</h1>
+    <p>Order #${order.id}</p>
+    <p>Date: ${new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+  </div>
+
+  <div class="invoice-info">
+    <div class="invoice-section">
+      <h3>Bill To:</h3>
+      ${order.shipping ? `
+      <p><strong>${order.shipping.name || order.shipping.full_name || 'Customer'}</strong></p>
+      <p>${order.shipping.address || ''}</p>
+      <p>${order.shipping.city || ''}</p>
+      <p>${order.shipping.phone || ''}</p>
+      ` : '<p>No shipping information</p>'}
+    </div>
+    <div class="invoice-section">
+      <h3>Order Status:</h3>
+      <p><strong>${order.status.toUpperCase()}</strong></p>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Unit Price</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${order.items?.map(item => `
+      <tr>
+        <td>${item.name || 'Product'}</td>
+        <td>${item.quantity || 1}</td>
+        <td>$${Number(item.price || 0).toFixed(2)}</td>
+        <td>$${(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</td>
+      </tr>
+      `).join('') || '<tr><td colspan="4">No items</td></tr>'}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div>
+      <span>Subtotal:</span>
+      <span>$${Number(order.subtotal || order.total_price || 0).toFixed(2)}</span>
+    </div>
+    ${order.discount_percentage > 0 ? `
+    <div class="discount">
+      <span>Discount (${order.discount_percentage}%):</span>
+      <span>-$${((Number(order.total_price || 0) * Number(order.discount_percentage)) / 100).toFixed(2)}</span>
+    </div>
+    ` : ''}
+    <div class="total">
+      <span>Total:</span>
+      <span>$${Number(order.discounted_total_price || order.total || order.total_price || 0).toFixed(2)}</span>
+    </div>
+  </div>
+
+  <div style="clear: both;"></div>
+
+  <div class="footer">
+    <p>Thank you for your business!</p>
+    <p>This is a computer-generated invoice.</p>
+  </div>
+</body>
+</html>
+    `;
+
+    // Create a blob and download it
+    const blob = new Blob([invoiceHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${order.id}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // Show loading while auth is loading
+  if (authLoading || loading) {
+    return (
+      <div className="orders-page">
+        <div className="orders-header">
+          <h1>My Orders</h1>
+        </div>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="orders-page">
+        <div className="orders-header">
+          <h1>My Orders</h1>
+        </div>
+        <div className="alert error">
+          Please log in to view your orders.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="orders-page">
+      <div className="orders-header">
+        <h1>My Orders</h1>
+      </div>
+
+      {error && <div className="alert error">{error}</div>}
+      {notice && <div className="alert success">{notice}</div>}
+
+      {orders.length === 0 ? (
+        <div className="orders-empty">
+          <p>You haven't placed any orders yet.</p>
+          <a href="/products" className="primary-btn">Start Shopping</a>
+        </div>
+      ) : (
+        <div className="orders-list">
+          {orders.map((order) => (
+            <div key={order.id} className="order-card">
+              <div className="order-header">
+                <div className="order-info">
+                  <h3>Order #{order.id}</h3>
+                  <p className="order-date">
+                    {new Date(order.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </p>
+                </div>
+                <div className="order-status">
+                  {getStatusBadge(order.status)}
+                </div>
+              </div>
+
+              <div className="order-items">
+                {order.items?.map((item, idx) => (
+                  <div key={idx} className="order-item">
+                    <div className="item-details">
+                      <p className="item-name">{item.name}</p>
+                      <p className="item-qty">Qty: {item.quantity}</p>
+                    </div>
+                    <div className="item-price">
+                      ${(Number(item.price || item.unit_price || 0) * Number(item.quantity || 1)).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {order.shipping && (
+                <div className="order-shipping">
+                  <h4>Shipping Address</h4>
+                  <p>{order.shipping.name}</p>
+                  <p>{order.shipping.address}</p>
+                  <p>{order.shipping.city}</p>
+                  <p>{order.shipping.phone}</p>
+                </div>
+              )}
+
+              <div className="order-summary">
+                <div className="summary-row">
+                  <span>Subtotal:</span>
+                  <span>${Number(order.subtotal || order.total_price || 0).toFixed(2)}</span>
+                </div>
+                {order.discount_percentage > 0 && (
+                  <div className="summary-row discount">
+                    <span>Discount ({order.discount_percentage}%):</span>
+                    <span>-${((Number(order.total_price || 0) * Number(order.discount_percentage)) / 100).toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="summary-row total">
+                  <span>Total:</span>
+                  <span>${Number(order.discounted_total_price || order.total || order.total_price || 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="order-actions">
+                <button
+                  className="btn-primary"
+                  onClick={() => handleDownloadInvoice(order)}
+                  title="Download invoice as HTML file"
+                >
+                  📄 Download Invoice
+                </button>
+                {canCancel(order.status) && (
+                  <button
+                    className="btn-secondary"
+                    onClick={() => handleCancel(order.id)}
+                    disabled={actionLoading === order.id}
+                  >
+                    {actionLoading === order.id ? "Cancelling..." : "Cancel Order"}
+                  </button>
+                )}
+                {canReturn(order.status) && (
+                  <button
+                    className="btn-secondary"
+                    onClick={() => handleReturn(order.id)}
+                    disabled={actionLoading === order.id}
+                  >
+                    {actionLoading === order.id ? "Requesting..." : "Request Return"}
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
