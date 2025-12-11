@@ -30,6 +30,9 @@ class Product(models.Model):
     image = models.ImageField(upload_to='products/', blank=True, null=True)
 
     description = models.TextField(blank=True, null=True)
+    model = models.CharField(max_length=100, blank=True, default='')
+    serial_number = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    distributor = models.CharField(max_length=255, blank=True, default='')
 
     category = models.CharField(
         max_length=50,

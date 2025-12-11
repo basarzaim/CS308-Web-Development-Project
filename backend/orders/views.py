@@ -20,14 +20,17 @@ from rest_framework.permissions import IsAuthenticated
 
 
 class CheckoutView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         """
         Accepts either:
-        - items array in the request body (guest or client-provided checkout)
+        - items array in the request body (authenticated user checkout)
         - or uses authenticated user's server cart (CartItem).
         """
-        user = request.user if request.user.is_authenticated else None
+        user = request.user
         items_data = request.data.get("items") or []
+        shipping_data = request.data.get("shipping", {})
 
         # If no items provided, fall back to server cart for authenticated users
         use_cart = not items_data and user is not None
@@ -49,7 +52,14 @@ class CheckoutView(APIView):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
-                order = Order.objects.create(user=user, total_price=0)
+                order = Order.objects.create(
+                    user=user,
+                    total_price=0,
+                    shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
+                    shipping_address=shipping_data.get('address', ''),
+                    shipping_city=shipping_data.get('city', ''),
+                    shipping_phone=shipping_data.get('phone', '')
+                )
                 total = Decimal("0")
 
                 for item in cart_items:
@@ -93,7 +103,14 @@ class CheckoutView(APIView):
             if not normalized:
                 return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
-            order = Order.objects.create(user=user, total_price=0)
+            order = Order.objects.create(
+                user=user,
+                total_price=0,
+                shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
+                shipping_address=shipping_data.get('address', ''),
+                shipping_city=shipping_data.get('city', ''),
+                shipping_phone=shipping_data.get('phone', '')
+            )
             total = Decimal("0")
 
             for product, qty in normalized:

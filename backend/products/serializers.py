@@ -6,7 +6,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "stock", "warranty", "description", "rating", "image"]
+        fields = ["id", "name", "price", "stock", "warranty", "description", "rating", "image", "category", "model", "serial_number", "distributor"]
 
     def to_representation(self, instance):
         """Round rating to 1 decimal place"""

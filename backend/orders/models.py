@@ -33,12 +33,18 @@ class Order(models.Model):
         default=0
     )
 
-    
+
     discount_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
         default=0
     )
+
+    # Shipping information
+    shipping_name = models.CharField(max_length=255, blank=True, default='')
+    shipping_address = models.TextField(blank=True, default='')
+    shipping_city = models.CharField(max_length=100, blank=True, default='')
+    shipping_phone = models.CharField(max_length=20, blank=True, default='')
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -17,7 +17,8 @@
       "Bash(find:*)",
       "Bash(tasklist:*)",
       "Bash(taskkill:*)",
-      "Bash(rsync:*)"
+      "Bash(rsync:*)",
+      "Bash(python -m json.tool:*)"
     ],
     "deny": [],
     "ask": []

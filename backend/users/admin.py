@@ -7,8 +7,10 @@ from .models import Customer
 class CustomUserAdmin(UserAdmin):
     model = Customer
     fieldsets = UserAdmin.fieldsets + (
-        ('Ekstra Alanlar', {'fields': ('taxID', 'home_address')}),
+        ('Role Information', {'fields': ('role',)}),
     )
+    list_display = ['email', 'username', 'first_name', 'last_name', 'role', 'is_staff']
+    list_filter = ['role', 'is_staff', 'is_active']
 
 # use this admin model instead of the base one
 admin.site.register(Customer, CustomUserAdmin)
