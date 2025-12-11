@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../lib/api";
 import "./Register.css";
->>>>>>> 76ffa01644a0ba838fed961b4c88a2b15b6400f9
 
 export default function Register() {
   const nav = useNavigate();
@@ -34,12 +33,9 @@ export default function Register() {
         (typeof r?.data === "string" ? r.data : JSON.stringify(r?.data)) ||
         e.message;
       setErr(msg);
-<<<<<<< HEAD
       console.error("REGISTER ERROR:", r?.status, r?.data);
     } finally {
       setLoading(false);
-=======
->>>>>>> 76ffa01644a0ba838fed961b4c88a2b15b6400f9
     }
   }
 
