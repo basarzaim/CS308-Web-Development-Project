@@ -1,5 +1,4 @@
-import api from "../lib/api";
-import { USE_MOCK, wait } from "./client";
+import { api, USE_MOCK, wait } from "./client";
 
 const mockUser = {
   id: 1,

@@ -1,47 +1,79 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchProductById } from "../api/products";
-import { getGuestWishlist, removeFromGuestWishlist } from "../stores/wishlist";
-import { addToGuestCart } from "../stores/cart";
+import { getWishlist, removeFromWishlist } from "../stores/wishlist";
+import { addToCart } from "../stores/cart";
+import { useAuth } from "../context/AuthContext";
+import * as wishlistAPI from "../api/wishlist";
 import "./Wishlist.css";
 
 export default function Wishlist() {
+  const { isAuthenticated } = useAuth();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadWishlist() {
-      const productIds = getGuestWishlist();
-      if (productIds.length === 0) {
-        setWishlistItems([]);
-        setLoading(false);
-        return;
-      }
-
+      setLoading(true);
+      setError("");
       try {
-        const products = await Promise.all(
-          productIds.map(id => fetchProductById(id).catch(() => null))
-        );
-        setWishlistItems(products.filter(p => p !== null));
+        if (isAuthenticated) {
+          // Fetch from backend API - it already returns product_name and product_price
+          const wishlistData = await wishlistAPI.fetchWishlist();
+          // Use data from API response - no need to fetch each product individually
+          const products = wishlistData.map((item) => {
+            const productId = item.product?.id ?? item.product;
+            return {
+              id: productId,
+              name: item.product_name,
+              price: item.product_price,
+              // If we need more details, fetch only when needed (lazy loading)
+            };
+          });
+          setWishlistItems(products);
+        } else {
+          // Guest wishlist - fetch products in parallel
+          const productIds = await getWishlist();
+          if (productIds.length === 0) {
+            setWishlistItems([]);
+            setLoading(false);
+            return;
+          }
+          const products = await Promise.all(
+            productIds.map(id => fetchProductById(id).catch(() => null))
+          );
+          setWishlistItems(products.filter(p => p !== null));
+        }
       } catch (err) {
         console.error("Failed to load wishlist:", err);
+        setError(err.message || "Failed to load wishlist");
         setWishlistItems([]);
       } finally {
         setLoading(false);
       }
     }
     loadWishlist();
-  }, []);
+  }, [isAuthenticated]);
 
-  function handleRemove(productId) {
-    removeFromGuestWishlist(productId);
-    setWishlistItems(prev => prev.filter(p => p.id !== productId));
+  async function handleRemove(productId) {
+    try {
+      await removeFromWishlist(productId);
+      setWishlistItems(prev => prev.filter(p => p.id !== productId));
+    } catch (err) {
+      console.error("Failed to remove from wishlist:", err);
+      setError(err.message || "Failed to remove item");
+    }
   }
 
-  function handleAddToCart(productId) {
-    addToGuestCart(productId, 1);
-    // Optionally remove from wishlist after adding to cart
-    // handleRemove(productId);
+  async function handleAddToCart(productId) {
+    try {
+      await addToCart(productId, 1);
+      // Optionally remove from wishlist after adding to cart
+      // handleRemove(productId);
+    } catch (err) {
+      console.error("Failed to add to cart:", err);
+    }
   }
 
   const HeartIcon = ({ filled = false, onClick }) => (
@@ -90,6 +122,8 @@ export default function Wishlist() {
             <p className="wishlist-count">{wishlistItems.length} {wishlistItems.length === 1 ? 'item' : 'items'}</p>
           )}
         </header>
+
+        {error && <div className="alert error">{error}</div>}
 
         {wishlistItems.length === 0 ? (
           <div className="wishlist-empty">

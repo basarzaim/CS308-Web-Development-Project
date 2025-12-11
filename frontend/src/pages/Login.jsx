@@ -1,12 +1,13 @@
+// src/pages/Login.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { login as loginRequest } from "../services/auth";
 import { useAuth } from "../context/AuthContext";
-import api from "../lib/api";
-import "./Login.css";
+import "./Login.css"
 
 export default function Login() {
   const nav = useNavigate();
-  const { login } = useAuth();
+  const { login } = useAuth(); // AuthContext login
   const [f, setF] = useState({ email: "", password: "" });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -15,17 +16,26 @@ export default function Login() {
     e.preventDefault();
     setErr("");
     setLoading(true);
+
     try {
-      const { data } = await api.post("/auth/login/", {
+      const data = await loginRequest({
         email: f.email,
         password: f.password,
       });
-      login(data.access, data.refresh || "");
-      nav("/");
+
+      if (data.access) {
+        login(data.access, data.refresh || "");
+      }
+
+      nav("/"); 
     } catch (e) {
       const r = e?.response;
-      setErr(r?.data?.detail || r?.data?.message || e.message || "Login failed");
-      console.error("LOGIN ERROR:", r?.status, r?.data || e);
+      setErr(
+        r?.data?.detail ||
+          r?.data?.message ||
+          e.message ||
+          "Login failed"
+      );
     } finally {
       setLoading(false);
     }

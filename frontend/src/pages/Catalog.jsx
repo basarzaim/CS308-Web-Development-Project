@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import api from "../lib/api";
+import { api } from "../api/client";
+import useDebounce from "../hooks/useDebounce";
 
 export default function Catalog() {
   const [items, setItems] = useState([]);
@@ -8,55 +9,52 @@ export default function Catalog() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState("featured");
+  const debouncedSearch = useDebounce(search, 350);
+
+  // Backend ordering key map
+  const getBackendOrdering = (sortKey) => {
+    switch (sortKey) {
+      case "price-asc":
+        return "price";
+      case "price-desc":
+        return "-price";
+      case "name-asc":
+        return "name";
+      case "name-desc":
+        return "-name";
+      case "stock":
+        return "-stock";
+      default:
+        return "";
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      setErr("");
-      try {
-        const { data } = await api.get("/products/"); // note trailing slash
+    let ignore = false;
+    setLoading(true);
+    setErr("");
+
+    const params = {
+      search: debouncedSearch || undefined,
+      ordering: getBackendOrdering(sort) || undefined,
+    };
+
+    api.get("/products/", { params })
+      .then(({ data }) => {
+        if (ignore) return;
         setItems(Array.isArray(data) ? data : data.results ?? []);
-      } catch {
-        setErr("Failed to load products.");
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
+      })
+      .catch(() => {
+        if (!ignore) setErr("Failed to load products.");
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
 
-  const filteredItems = useMemo(() => {
-    let list = [...items];
-    if (search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(
-        (item) =>
-          item.name?.toLowerCase().includes(q) ||
-          item.description?.toLowerCase().includes(q)
-      );
-    }
-
-    switch (sort) {
-      case "price-asc":
-        list.sort((a, b) => Number(a.price) - Number(b.price));
-        break;
-      case "price-desc":
-        list.sort((a, b) => Number(b.price) - Number(a.price));
-        break;
-      case "name-asc":
-        list.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-        break;
-      case "name-desc":
-        list.sort((a, b) => (b.name || "").localeCompare(a.name || ""));
-        break;
-      case "stock":
-        list.sort((a, b) => Number(b.stock ?? 0) - Number(a.stock ?? 0));
-        break;
-      default:
-        break;
-    }
-
-    return list;
-  }, [items, search, sort]);
+    return () => {
+      ignore = true;
+    };
+  }, [debouncedSearch, sort]);
 
   return (
     <div className="catalog-page">
@@ -80,11 +78,11 @@ export default function Catalog() {
       {err && <div className="catalog-feedback catalog-feedback--error">{err}</div>}
       {loading ? (
         <div className="catalog-feedback">Loading products…</div>
-      ) : filteredItems.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="catalog-feedback">No products match your search.</div>
       ) : (
         <div className="catalog-grid">
-          {filteredItems.map((p) => (
+          {items.map((p) => (
             <Card key={p.id} p={p} />
           ))}
         </div>

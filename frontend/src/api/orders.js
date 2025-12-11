@@ -117,7 +117,19 @@ export async function fetchUserOrders() {
 
   try {
     const { data } = await api.get("/orders/");
-    return data;
+    // Handle paginated response (DRF default)
+    if (Array.isArray(data)) {
+      return data;
+    }
+    if (Array.isArray(data?.results)) {
+      return data.results;
+    }
+    if (Array.isArray(data?.items)) {
+      return data.items;
+    }
+    // Fallback to empty array if unexpected format
+    console.warn("Unexpected orders response format:", data);
+    return [];
   } catch (error) {
     console.warn("Orders API failed, using locally stored orders:", error);
     // Fallback to locally stored orders if backend endpoint doesn't exist
@@ -250,19 +262,10 @@ export async function fetchAllOrders() {
   }
 
   try {
-    // Try different possible admin endpoints
-    const endpoints = ["/admin/orders/", "/orders/all/", "/orders/"];
-    for (const endpoint of endpoints) {
-      try {
-        const { data } = await api.get(endpoint);
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.results)) return data.results;
-        if (Array.isArray(data?.items)) return data.items;
-      } catch {
-        continue;
-      }
-    }
-    throw new Error("No endpoint found for fetching all orders");
+    const { data } = await api.get("/orders/admin/");
+    if (Array.isArray(data?.results)) return data.results;
+    if (Array.isArray(data?.items)) return data.items;
+    return data;
   } catch (error) {
     throw new Error(extractMessage(error, "Failed to load orders"));
   }
@@ -283,27 +286,8 @@ export async function updateOrderStatus(orderId, newStatus) {
   }
 
   try {
-    // Try PATCH or PUT endpoints
-    const endpoints = [
-      `/admin/orders/${orderId}/status/`,
-      `/orders/${orderId}/status/`,
-      `/admin/orders/${orderId}/`,
-      `/orders/${orderId}/`,
-    ];
-    for (const endpoint of endpoints) {
-      try {
-        const { data } = await api.patch(endpoint, { status: newStatus });
-        return data;
-      } catch {
-        try {
-          const { data } = await api.put(endpoint, { status: newStatus });
-          return data;
-        } catch {
-          continue;
-        }
-      }
-    }
-    throw new Error("No endpoint found for updating order status");
+    const { data } = await api.patch(`/orders/${orderId}/status/`, { status: newStatus });
+    return data;
   } catch (error) {
     throw new Error(extractMessage(error, "Failed to update order status"));
   }

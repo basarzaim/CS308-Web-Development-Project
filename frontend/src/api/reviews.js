@@ -1,5 +1,4 @@
-import api from "../lib/api";
-import { USE_MOCK, wait } from "./client";
+import { api, USE_MOCK, wait } from "./client";
 
 const mockComments = new Map();
 const mockRatings = new Map();
@@ -126,19 +125,11 @@ export async function fetchPendingComments() {
   }
 
   try {
-    // Try different possible endpoints
-    const endpoints = ["/comments/pending/", "/comments/?status=pending", "/admin/comments/pending/"];
-    for (const endpoint of endpoints) {
-      try {
-        const { data } = await api.get(endpoint);
-        if (Array.isArray(data)) return data;
-        if (Array.isArray(data?.results)) return data.results;
-        if (Array.isArray(data?.items)) return data.items;
-      } catch {
-        continue;
-      }
-    }
-    throw new Error("No endpoint found for pending comments");
+    const { data } = await api.get("/comments/pending/");
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.results)) return data.results;
+    if (Array.isArray(data?.items)) return data.items;
+    return [];
   } catch (error) {
     throw new Error(extractMessage(error, "Failed to load pending comments"));
   }
@@ -163,26 +154,8 @@ export async function updateCommentStatus(commentId, status) {
   }
 
   try {
-    // Try PATCH or PUT endpoints
-    const endpoints = [
-      `/comments/${commentId}/`,
-      `/admin/comments/${commentId}/`,
-      `/comments/${commentId}/status/`,
-    ];
-    for (const endpoint of endpoints) {
-      try {
-        const { data } = await api.patch(endpoint, { status });
-        return data;
-      } catch {
-        try {
-          const { data } = await api.put(endpoint, { status });
-          return data;
-        } catch {
-          continue;
-        }
-      }
-    }
-    throw new Error("No endpoint found for updating comment status");
+    const { data } = await api.patch(`/comments/${commentId}/status/`, { status });
+    return data;
   } catch (error) {
     throw new Error(extractMessage(error, "Failed to update comment status"));
   }

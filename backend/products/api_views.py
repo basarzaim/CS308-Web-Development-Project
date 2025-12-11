@@ -22,8 +22,11 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["price", "name", "stock", "warranty"]
 
     def get_queryset(self):
-        # Optimize: prefetch reviews for rating calculation to avoid N+1 queries
-        queryset = Product.objects.all().prefetch_related('reviews')
+        # Optimize: annotate rating at queryset level to avoid N+1 queries
+        from django.db.models import Avg
+        queryset = Product.objects.all().annotate(
+            rating=Avg('reviews__score')
+        )
 
         # CATEGORY FILTER
         category = self.request.query_params.get("category")

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { fetchProductById } from "../api/products";
 import {
   fetchProductComments,
   createProductComment,
   submitProductRating,
   fetchRatingSummary,
 } from "../api/reviews";
-import { addToGuestCart } from "../stores/cart";
+import { getProductDetail } from '../services/products';
+import { addToCart } from "../stores/cart";
 import "./Product.css";
 
 const STAR_VALUES = [1, 2, 3, 4, 5];
@@ -39,7 +39,7 @@ export default function Product() {
     let active = true;
     setLoadingProduct(true);
     setProductError("");
-    fetchProductById(productId)
+    getProductDetail(productId)
       .then((data) => {
         if (active) setProduct(data);
       })
@@ -55,8 +55,11 @@ export default function Product() {
   }, [productId]);
 
   useEffect(() => {
-    loadComments();
-    loadSummary();
+    // Load comments and rating summary in parallel for better performance
+    Promise.all([
+      loadComments(),
+      loadSummary()
+    ]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
@@ -124,10 +127,15 @@ export default function Product() {
     }
   }
 
-  function handleAddToCart() {
-    addToGuestCart(productId, 1);
-    setCartNotice("Product added to cart!");
-    setTimeout(() => setCartNotice(""), 4000);
+  async function handleAddToCart() {
+    try {
+      await addToCart(productId, 1);
+      setCartNotice("Product added to cart!");
+      setTimeout(() => setCartNotice(""), 4000);
+    } catch (err) {
+      setCartNotice("Failed to add to cart");
+      setTimeout(() => setCartNotice(""), 4000);
+    }
   }
 
   if (loadingProduct) {

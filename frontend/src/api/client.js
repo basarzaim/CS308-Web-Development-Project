@@ -12,9 +12,21 @@ export const api = axios.create({
   withCredentials: true,
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("access_token");
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`; // DRF SimpleJWT vs ise
+  }
+  return config;
+});
+
 export async function apiGet(url, config) {
   const res = await api.get(url, config);
   return res.data;
 }
 
 export const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Default export for convenience in modules that expect `api` as default.
+export default api;
