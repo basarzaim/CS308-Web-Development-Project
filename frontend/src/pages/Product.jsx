@@ -128,6 +128,10 @@ export default function Product() {
   }
 
   async function handleAddToCart() {
+    // Prevent adding out-of-stock products to cart
+    if (!product || (product.stock ?? 0) <= 0) {
+      return;
+    }
     try {
       await addToCart(productId, 1);
       setCartNotice("Product added to cart!");
@@ -168,6 +172,7 @@ export default function Product() {
     product.stock > 0
       ? `${product.stock} in stock`
       : "Out of stock";
+  const isOutOfStock = (product.stock ?? 0) <= 0;
 
   return (
     <div className="product-page">
@@ -187,7 +192,12 @@ export default function Product() {
           </span>
         </div>
         <div className="product-actions">
-          <button type="button" className="primary-btn" onClick={handleAddToCart}>
+          <button 
+            type="button" 
+            className={`primary-btn ${isOutOfStock ? 'out-of-stock' : ''}`}
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+          >
             Add to cart
           </button>
           {cartNotice && (

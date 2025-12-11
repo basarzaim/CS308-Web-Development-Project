@@ -126,6 +126,13 @@
   cursor: not-allowed;
 }
 
+.primary-btn.out-of-stock:disabled {
+  opacity: 0.4;
+  color: #94a3b8;
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
 .badge {
   background: #e0f2fe;
   color: #0369a1;
