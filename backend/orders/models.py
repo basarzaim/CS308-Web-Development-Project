@@ -46,6 +46,11 @@ class Order(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', '-created_at']),  # For user order lists
+            models.Index(fields=['status']),  # For filtering by status
+            models.Index(fields=['-created_at']),  # For ordering
+        ]
 
     def __str__(self):
         return f"Order #{self.id} - {self.user} ({self.status})"

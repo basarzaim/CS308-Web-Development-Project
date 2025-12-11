@@ -1,21 +1,21 @@
+# backend/products/api_urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .api_views import ProductViewSet
+from .api_views import ProductViewSet, CategoryListAPIView  
 from .auth_views import RegisterView
 
 
 router = DefaultRouter()
-router.register(r'products', ProductViewSet, basename='product')
+router.register(r"", ProductViewSet, basename="product")
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 
+
+    path("categories/", CategoryListAPIView.as_view(), name="category-list"),
     # Auth endpoints
-    path('auth/register/', RegisterView.as_view(), name='register'),
-    path('auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
-    
+    path("auth/register/", RegisterView.as_view(), name="register"),
+    path("auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 ]
-

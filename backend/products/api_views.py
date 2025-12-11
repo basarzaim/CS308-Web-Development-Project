@@ -1,5 +1,9 @@
+# backend/products/api_views.py
+from django.db.models import Count          # 🔹 EK
 from rest_framework import viewsets
 from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.views import APIView    # 🔹 EK
+from rest_framework.response import Response  # 🔹 EK
 
 from .models import Product
 from .serializers import ProductSerializer
@@ -8,7 +12,7 @@ from .serializers import ProductSerializer
 class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = ProductSerializer
 
-    # 🔍 Search & 🔃 Ordering aktif
+    #  Search 
     filter_backends = [SearchFilter, OrderingFilter]
 
     # search: ?search=iphone
@@ -18,9 +22,15 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["price", "name", "stock", "warranty"]
 
     def get_queryset(self):
-        queryset = Product.objects.all()
+        # Optimize: prefetch reviews for rating calculation to avoid N+1 queries
+        queryset = Product.objects.all().prefetch_related('reviews')
 
-        # ✅ PRICE FILTER
+        # CATEGORY FILTER
+        category = self.request.query_params.get("category")
+        if category:
+            queryset = queryset.filter(category=category)
+
+        # PRICE FILTER
         min_price = self.request.query_params.get("min_price")
         max_price = self.request.query_params.get("max_price")
 
@@ -30,16 +40,50 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         if max_price is not None:
             queryset = queryset.filter(price__lte=max_price)
 
-        # ✅ STOCK FILTER
+        # STOCK FILTER
         in_stock = self.request.query_params.get("in_stock")
         if in_stock == "true":
             queryset = queryset.filter(stock__gt=0)
         elif in_stock == "false":
             queryset = queryset.filter(stock=0)
 
-        # ✅ WARRANTY FILTER
+        # WARRANTY FILTER
         min_warranty = self.request.query_params.get("min_warranty")
         if min_warranty is not None:
             queryset = queryset.filter(warranty__gte=min_warranty)
 
         return queryset
+
+
+class CategoryListAPIView(APIView):
+    """
+    GET /api/categories/  -> [
+      { "slug": "phones", "name": "Phones", "product_count": 5 },
+      ...
+    ]
+    """
+
+    def get(self, request, *args, **kwargs):
+        qs = (
+            Product.objects
+            .values("category")
+            .annotate(product_count=Count("id"))
+            .order_by("category")
+        )
+
+        # CATEGORY_CHOICES'tan label map'i üretelim
+        # Örn: { "phones": "Phones", ... }
+        choices_map = dict(Product.CATEGORY_CHOICES)
+
+        data = []
+        for row in qs:
+            cat = row["category"]
+            if not cat:
+                continue
+            data.append({
+                "slug": cat,
+                "name": choices_map.get(cat, cat),
+                "product_count": row["product_count"],
+            })
+
+        return Response(data)

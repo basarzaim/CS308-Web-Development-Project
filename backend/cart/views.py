@@ -30,7 +30,14 @@ class ListCartView(views.APIView):
     def get(self, request):
         if request.user.is_authenticated:
             items = CartItem.objects.filter(user=request.user).select_related("product")
-            data = [{"product_id": i.product_id, "name": i.product.name, "qty": i.quantity} for i in items]
+            data = [{
+                "id": i.id,
+                "product_id": i.product_id,
+                "name": i.product.name,
+                "price": str(i.product.price),
+                "qty": i.quantity,
+                "quantity": i.quantity
+            } for i in items]
             return response.Response({"cart": data}, status=status.HTTP_200_OK)
         else:
             sc = get_session_cart(request)  # {"1": 2, "5": 1}
@@ -42,6 +49,54 @@ class ListCartView(views.APIView):
                 "qty": qty
             } for pid, qty in sc.items()]
             return response.Response({"cart": data}, status=status.HTTP_200_OK)
+
+class UpdateCartItemView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request, item_id):
+        cart_item = get_object_or_404(CartItem, pk=item_id, user=request.user)
+        quantity = request.data.get("quantity")
+        
+        if quantity is not None:
+            qty = int(quantity)
+            if qty <= 0:
+                cart_item.delete()
+                return response.Response({"message": "Item removed"}, status=status.HTTP_200_OK)
+            cart_item.quantity = qty
+            cart_item.save()
+        
+        return response.Response({
+            "id": cart_item.id,
+            "product_id": cart_item.product_id,
+            "quantity": cart_item.quantity
+        }, status=status.HTTP_200_OK)
+
+
+class RemoveCartItemView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, item_id):
+        cart_item = get_object_or_404(CartItem, pk=item_id, user=request.user)
+        cart_item.delete()
+        return response.Response({"message": "Item removed"}, status=status.HTTP_200_OK)
+
+
+class RemoveCartItemByProductView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, product_id):
+        cart_item = get_object_or_404(CartItem, product_id=product_id, user=request.user)
+        cart_item.delete()
+        return response.Response({"message": "Item removed"}, status=status.HTTP_200_OK)
+
+
+class ClearCartView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request):
+        CartItem.objects.filter(user=request.user).delete()
+        return response.Response({"message": "Cart cleared"}, status=status.HTTP_200_OK)
+
 
 class MergeCartView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]

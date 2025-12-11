@@ -1,20 +1,23 @@
-from rest_framework import viewsets
-from rest_framework.filters import SearchFilter, OrderingFilter
-
+from rest_framework import generics
 from .models import Product
 from .serializers import ProductSerializer
 
 
-class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+from rest_framework import filters
+from django_filters.rest_framework import DjangoFilterBackend
+
+class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
+    
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
-    # Search & Sort aktif
-    filter_backends = [SearchFilter, OrderingFilter]
+    #  ?category=Electronics&price=1000
+    filterset_fields = ['category', 'stock'] 
 
-    # /api/products/products/?search=mac
-    search_fields = ["name", "description"]
+    # search bar
+    search_fields = ['name', 'description']
 
-    # /api/products/products/?ordering=price  OR  -price
-    ordering_fields = ["price", "name"]
-
+    #sort 
+    ordering_fields = ['price', 'stock', 'created_at']
+    ordering = ['id'] 

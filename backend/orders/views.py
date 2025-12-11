@@ -1,60 +1,111 @@
+from rest_framework import generics, status
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
-from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 from cart.models import CartItem
 from products.models import Product
 from .models import Order, OrderItem
 from .serializers import OrderSerializer
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
 from decimal import Decimal   
 
 
 class CheckoutView(APIView):
     def post(self, request):
-        user = request.user
-        items_data = request.data.get('items', [])
+        """
+        Accepts either:
+        - items array in the request body (guest or client-provided checkout)
+        - or uses authenticated user's server cart (CartItem).
+        """
+        user = request.user if request.user.is_authenticated else None
+        items_data = request.data.get("items") or []
 
-        cart_items = CartItem.objects.filter(user=user).select_related("product")
+        # If no items provided, fall back to server cart for authenticated users
+        use_cart = not items_data and user is not None
 
-        if not cart_items.exists():
-            return Response(
-                {"error": "Your cart is empty."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        with transaction.atomic():
+            if use_cart:
+                cart_items = CartItem.objects.filter(user=user).select_related("product")
+                if not cart_items.exists():
+                    return Response(
+                        {"error": "Your cart is empty."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
-        for item in cart_items:
-            if item.product.stock < item.quantity:
-                return Response(
-                    {"error": f"Not enough stock for: {item.product.name}"},
-                    status=status.HTTP_400_BAD_REQUEST,
+                # Validate stock
+                for item in cart_items:
+                    if item.product.stock < item.quantity:
+                        return Response(
+                            {"error": f"Not enough stock for: {item.product.name}"},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+
+                order = Order.objects.create(user=user, total_price=0)
+                total = Decimal("0")
+
+                for item in cart_items:
+                    OrderItem.objects.create(
+                        order=order,
+                        product=item.product,
+                        quantity=item.quantity,
+                        unit_price=item.product.price,
+                    )
+                    total += item.product.price * item.quantity
+
+                    # decrement stock
+                    item.product.stock -= item.quantity
+                    item.product.save()
+
+                order.total_price = total
+                order.save()
+
+                # clear cart
+                cart_items.delete()
+
+                serializer = OrderSerializer(order)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            # Fallback: use provided items_data (guest checkout or client-provided payload)
+            normalized = []
+            for raw in items_data:
+                pid = raw.get("product_id") or raw.get("productId")
+                qty = int(raw.get("quantity") or raw.get("qty") or 1)
+                if not pid:
+                    return Response({"error": "product_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+                product = get_object_or_404(Product, pk=int(pid))
+                qty = max(1, qty)
+                if product.stock < qty:
+                    return Response(
+                        {"error": f"Not enough stock for: {product.name}"},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                normalized.append((product, qty))
+
+            if not normalized:
+                return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+            order = Order.objects.create(user=user, total_price=0)
+            total = Decimal("0")
+
+            for product, qty in normalized:
+                OrderItem.objects.create(
+                    order=order,
+                    product=product,
+                    quantity=qty,
+                    unit_price=product.price,
                 )
+                total += product.price * qty
+                product.stock -= qty
+                product.save()
 
-        order = Order.objects.create(user=user, total_price=0)
+            order.total_price = total
+            order.save()
 
-        total = 0
-        for item in cart_items:
-            OrderItem.objects.create(
-                order=order,
-                product=item.product,
-                quantity=item.quantity,
-                unit_price=item.product.price,
-            )
-            total += item.product.price * item.quantity
-
-            item.product.stock -= item.quantity
-            item.product.save()
-
-        order.total_price = total
-        order.save()
-
-        cart_items.delete()
-
-        serializer = OrderSerializer(order)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer = OrderSerializer(order)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class OrderCancelView(APIView):
@@ -108,6 +159,59 @@ class OrderReturnView(APIView):
             {"message": "Return request submitted. Waiting for approval."},
             status=status.HTTP_200_OK
         )
+
+
+class OrderListView(generics.ListAPIView):
+    """List orders for the authenticated user."""
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Order.objects
+            .filter(user=self.request.user)
+            .prefetch_related("items__product")
+        )
+
+
+class OrderDetailView(generics.RetrieveAPIView):
+    """Retrieve a single order for the authenticated user."""
+    serializer_class = OrderSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return (
+            Order.objects
+            .filter(user=self.request.user)
+            .prefetch_related("items__product")
+        )
+
+
+class AdminOrderListView(generics.ListAPIView):
+    """List all orders for admins."""
+    serializer_class = OrderSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        return Order.objects.all().select_related("user").prefetch_related("items__product")
+
+
+class AdminOrderStatusUpdateView(APIView):
+    """Update order status (admin only)."""
+    permission_classes = [IsAdminUser]
+
+    def patch(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+        new_status = request.data.get("status")
+        valid = [choice[0] for choice in Order.STATUS_CHOICES]
+        if new_status not in valid:
+            return Response(
+                {"error": f"Invalid status. Must be one of: {valid}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        order.status = new_status
+        order.save()
+        return Response(OrderSerializer(order).data, status=status.HTTP_200_OK)
 
 
 @api_view(["PUT"])
