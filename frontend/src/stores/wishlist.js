@@ -129,15 +129,24 @@ export async function isInWishlist(productId) {
   return isInGuestWishlist(id);
 }
 
-export async function toggleWishlist(productId) {
+export async function toggleWishlist(productId, currentState = null) {
   const id = normalizeId(productId);
   if (id == null) return;
 
-  const isIn = await isInWishlist(id);
+  // If current state is provided, use it instead of fetching
+  let isIn;
+  if (currentState !== null) {
+    isIn = currentState;
+  } else {
+    isIn = await isInWishlist(id);
+  }
+
   if (isIn) {
     await removeFromWishlist(id);
+    return false; // Return new state: not in wishlist
   } else {
     await addToWishlist(id);
+    return true; // Return new state: in wishlist
   }
 }
 

@@ -85,7 +85,7 @@ export async function removeFromWishlist(wishlistItemId) {
   }
 }
 
-// Helper: Remove by product ID (finds wishlist item ID first)
+// Helper: Remove by product ID (uses efficient backend endpoint)
 export async function removeFromWishlistByProduct(productId) {
   const numericProductId = Number(productId);
   if (!Number.isFinite(numericProductId)) {
@@ -103,16 +103,14 @@ export async function removeFromWishlistByProduct(productId) {
   }
 
   try {
-    // Fetch wishlist to find the item ID
-    const wishlist = await fetchWishlist();
-    const item = wishlist.find((w) => w.product === numericProductId || w.product?.id === numericProductId);
-    if (!item) {
-      throw new Error("Product not in wishlist");
-    }
-    const wishlistItemId = item.id;
-    await api.delete(`/wishlist/${wishlistItemId}/`);
+    // Use efficient endpoint that deletes by product ID directly
+    await api.delete(`/wishlist/product/${numericProductId}/`);
     return {};
   } catch (error) {
+    // Handle 404 as success (item already not in wishlist)
+    if (error.response?.status === 404) {
+      return {};
+    }
     throw new Error(extractMessage(error, "Failed to remove from wishlist"));
   }
 }

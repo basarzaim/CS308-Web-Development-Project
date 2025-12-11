@@ -26,6 +26,28 @@ const COLOR_OPTIONS = [
   "Gold",
 ];
 
+// Category list matching backend Product.CATEGORY_CHOICES
+const CATEGORY_OPTIONS = [
+  { slug: "phones", name: "Phones" },
+  { slug: "laptops", name: "Laptops & Ultrabooks" },
+  { slug: "tablets", name: "Tablets & E-Readers" },
+  { slug: "desktops", name: "Desktops & All-in-Ones" },
+  { slug: "monitors", name: "Monitors" },
+  { slug: "components", name: "PC Components" },
+  { slug: "peripherals", name: "Keyboards, Mice & Input" },
+  { slug: "networking", name: "Networking & Modems" },
+  { slug: "audio", name: "Headphones & Speakers" },
+  { slug: "tv_video", name: "TV & Video" },
+  { slug: "gaming", name: "Gaming Consoles & Accessories" },
+  { slug: "smart_home", name: "Smart Home" },
+  { slug: "wearables", name: "Wearables" },
+  { slug: "storage", name: "External Storage & SSD/HDD" },
+  { slug: "printers", name: "Printers & Scanners" },
+  { slug: "accessories", name: "Cables & Accessories" },
+  { slug: "drones", name: "Drones" },
+  { slug: "photo_video", name: "Cameras & Photo" },
+];
+
 export default function ProductList() {
   const { isAuthenticated } = useAuth();
   // UI state
@@ -42,10 +64,11 @@ export default function ProductList() {
   const [error, setError] = useState(null);
 
   // data state
-  const [cats, setCats] = useState([]);
   const [items, setItems] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  // Category product counts (fetched from API, merged with static list)
+  const [categoryCounts, setCategoryCounts] = useState({});
 
   // Backend ordering key map
   const getBackendOrdering = (sortKey) => {
@@ -82,21 +105,23 @@ export default function ProductList() {
     loadWishlist();
   }, [isAuthenticated]);
 
-  // fetch categories (independent of products - can load in parallel)
+  // Fetch category product counts (optional - for displaying counts)
   useEffect(() => {
     let ignore = false;
     fetchCategories()
       .then((d) => {
         const raw = d?.results || d || [];
-        const list = raw.map((c, i) => ({
-          slug: c.slug ?? String(c.id ?? i + 1),
-          name: c.name ?? String(c.slug ?? `Cat ${i + 1}`),
-          product_count: c.product_count,
-        }));
-        if (!ignore) setCats(list);
+        const counts = {};
+        raw.forEach((c) => {
+          if (c.slug) {
+            counts[c.slug] = c.product_count || 0;
+          }
+        });
+        if (!ignore) setCategoryCounts(counts);
       })
       .catch((err) => {
-        console.error("Error fetching categories:", err);
+        console.error("Error fetching category counts:", err);
+        // Continue with empty counts - categories will still show
       });
     return () => {
       ignore = true;
@@ -176,13 +201,45 @@ export default function ProductList() {
 
   // Wishlist toggle handler
   const handleToggleWishlist = async (productId) => {
+    const idStr = String(productId);
+    const currentState = wishlistItems.has(idStr);
+    
+    // Store original state for potential revert
+    const originalSet = new Set(wishlistItems);
+    
+    // Optimistically update UI
+    const newSet = new Set(wishlistItems);
+    if (currentState) {
+      newSet.delete(idStr);
+    } else {
+      newSet.add(idStr);
+    }
+    setWishlistItems(newSet);
+
     try {
-      await toggleWishlist(productId);
-      // Refresh wishlist state
-      const items = await getWishlist();
-      setWishlistItems(new Set(items.map(String)));
+      // Toggle with current state to avoid unnecessary API call
+      const newState = await toggleWishlist(productId, currentState);
+      // Update state based on result (in case of error, it might have reverted)
+      if (newState !== undefined) {
+        const finalSet = new Set(originalSet);
+        if (newState) {
+          finalSet.add(idStr);
+        } else {
+          finalSet.delete(idStr);
+        }
+        setWishlistItems(finalSet);
+      }
     } catch (err) {
       console.error("Error toggling wishlist:", err);
+      // Revert optimistic update on error
+      setWishlistItems(originalSet);
+      // Optionally refresh from server to get accurate state
+      try {
+        const items = await getWishlist();
+        setWishlistItems(new Set(items.map(String)));
+      } catch (refreshErr) {
+        console.error("Error refreshing wishlist:", refreshErr);
+      }
     }
   };
 
@@ -255,10 +312,10 @@ export default function ProductList() {
                 }}
               >
                 <option value="">All categories</option>
-                {cats.map((c) => (
+                {CATEGORY_OPTIONS.map((c) => (
                   <option key={c.slug} value={c.slug}>
                     {c.name}
-                    {c.product_count != null ? ` (${c.product_count})` : ""}
+                    {categoryCounts[c.slug] != null ? ` (${categoryCounts[c.slug]})` : ""}
                   </option>
                 ))}
               </select>

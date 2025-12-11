@@ -33,6 +33,7 @@ export default function Checkout() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
+  const [phoneError, setPhoneError] = useState("");
 
   useEffect(() => {
     hydrateCart();
@@ -152,10 +153,32 @@ export default function Checkout() {
     updateForm('full_name', filtered);
   }
 
+  function validatePhone(phone) {
+    if (!phone) return false;
+    const phoneDigits = phone.replace(/[^0-9]/g, '');
+    return phoneDigits.length >= 7 && phoneDigits.length <= 13;
+  }
+
   function handlePhoneChange(value) {
     // Allow only numbers in phone field
     const filtered = value.replace(/[^0-9]/g, '');
     updateForm('phone', filtered);
+    
+    // Validate phone length
+    if (filtered && (filtered.length < 7 || filtered.length > 13)) {
+      setPhoneError("Please enter a valid phone number.");
+    } else {
+      setPhoneError("");
+    }
+  }
+
+  function handlePhoneBlur() {
+    // Validate on blur
+    if (form.phone && !validatePhone(form.phone)) {
+      setPhoneError("Please enter a valid phone number.");
+    } else {
+      setPhoneError("");
+    }
   }
 
   function handleEmailChange(value) {
@@ -169,18 +192,6 @@ export default function Checkout() {
     return emailRegex.test(email);
   }
 
-  function handleNameChange(value) {
-    // Remove numbers from the input
-    const filteredValue = value.replace(/[0-9]/g, '');
-    updateForm('full_name', filteredValue);
-  }
-
-  function handlePhoneChange(value) {
-    // Keep only numbers
-    const filteredValue = value.replace(/[^0-9]/g, '');
-    updateForm('phone', filteredValue);
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setError("");
@@ -192,6 +203,11 @@ export default function Checkout() {
     }
     if (!form.full_name || !form.address || !form.city || !form.phone) {
       setError("Please fill in the required shipping fields.");
+      return;
+    }
+    if (!validatePhone(form.phone)) {
+      setError("Please enter a valid phone number.");
+      setPhoneError("Please enter a valid phone number.");
       return;
     }
     if (form.email && !validateEmail(form.email)) {
@@ -407,10 +423,17 @@ export default function Checkout() {
                 type="tel"
                 value={form.phone}
                 onChange={(e) => handlePhoneChange(e.target.value)}
+                onBlur={handlePhoneBlur}
                 required
                 placeholder="Enter phone number"
                 inputMode="numeric"
+                maxLength={13}
               />
+              {phoneError && (
+                <span style={{ color: '#dc2626', fontSize: '0.85rem', marginTop: '4px', display: 'block' }}>
+                  {phoneError}
+                </span>
+              )}
             </label>
             <label>
               Address*

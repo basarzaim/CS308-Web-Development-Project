@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, status
+from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from .models import Wishlist
@@ -43,3 +44,24 @@ class WishlistViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(wishlist_item)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['delete'], url_path='product/(?P<product_id>[^/.]+)')
+    def delete_by_product(self, request, product_id=None):
+        """Delete wishlist item by product ID (more efficient than fetching all items first)"""
+        try:
+            product = Product.objects.get(id=product_id)
+        except Product.DoesNotExist:
+            return Response(
+                {"detail": "Product not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            wishlist_item = Wishlist.objects.get(user=request.user, product=product)
+            wishlist_item.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except Wishlist.DoesNotExist:
+            return Response(
+                {"detail": "Product not in wishlist."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
