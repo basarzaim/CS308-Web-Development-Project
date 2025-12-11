@@ -100,6 +100,116 @@ export default function Orders() {
     return status === "delivered";
   };
 
+  const handleDownloadInvoice = (order) => {
+    // Generate invoice HTML
+    const invoiceHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice #${order.id}</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; }
+    .invoice-header { text-align: center; margin-bottom: 40px; border-bottom: 3px solid #2563eb; padding-bottom: 20px; }
+    .invoice-header h1 { color: #2563eb; margin: 0; font-size: 2.5rem; }
+    .invoice-info { display: flex; justify-content: space-between; margin-bottom: 30px; }
+    .invoice-section { background: #f8fafc; padding: 15px; border-radius: 8px; }
+    .invoice-section h3 { margin: 0 0 10px 0; color: #0f172a; }
+    .invoice-section p { margin: 5px 0; color: #475569; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th { background: #2563eb; color: white; padding: 12px; text-align: left; }
+    td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover { background: #f8fafc; }
+    .totals { margin-top: 30px; float: right; width: 300px; }
+    .totals div { display: flex; justify-content: space-between; padding: 8px; }
+    .totals .total { font-weight: bold; font-size: 1.2rem; border-top: 2px solid #2563eb; margin-top: 10px; padding-top: 10px; }
+    .discount { color: #16a34a; font-weight: 600; }
+    .footer { margin-top: 60px; text-align: center; color: #94a3b8; font-size: 0.9rem; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="invoice-header">
+    <h1>INVOICE</h1>
+    <p>Order #${order.id}</p>
+    <p>Date: ${new Date(order.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+  </div>
+
+  <div class="invoice-info">
+    <div class="invoice-section">
+      <h3>Bill To:</h3>
+      ${order.shipping ? `
+      <p><strong>${order.shipping.name || order.shipping.full_name || 'Customer'}</strong></p>
+      <p>${order.shipping.address || ''}</p>
+      <p>${order.shipping.city || ''}</p>
+      <p>${order.shipping.phone || ''}</p>
+      ` : '<p>No shipping information</p>'}
+    </div>
+    <div class="invoice-section">
+      <h3>Order Status:</h3>
+      <p><strong>${order.status.toUpperCase()}</strong></p>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Unit Price</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${order.items?.map(item => `
+      <tr>
+        <td>${item.name || 'Product'}</td>
+        <td>${item.quantity || 1}</td>
+        <td>$${Number(item.price || 0).toFixed(2)}</td>
+        <td>$${(Number(item.price || 0) * Number(item.quantity || 1)).toFixed(2)}</td>
+      </tr>
+      `).join('') || '<tr><td colspan="4">No items</td></tr>'}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div>
+      <span>Subtotal:</span>
+      <span>$${Number(order.subtotal || order.total_price || 0).toFixed(2)}</span>
+    </div>
+    ${order.discount_percentage > 0 ? `
+    <div class="discount">
+      <span>Discount (${order.discount_percentage}%):</span>
+      <span>-$${((Number(order.total_price || 0) * Number(order.discount_percentage)) / 100).toFixed(2)}</span>
+    </div>
+    ` : ''}
+    <div class="total">
+      <span>Total:</span>
+      <span>$${Number(order.discounted_total_price || order.total || order.total_price || 0).toFixed(2)}</span>
+    </div>
+  </div>
+
+  <div style="clear: both;"></div>
+
+  <div class="footer">
+    <p>Thank you for your business!</p>
+    <p>This is a computer-generated invoice.</p>
+  </div>
+</body>
+</html>
+    `;
+
+    // Create a blob and download it
+    const blob = new Blob([invoiceHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoice-${order.id}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   // Show loading while auth is loading
   if (authLoading || loading) {
     return (
@@ -186,15 +296,28 @@ export default function Orders() {
               <div className="order-summary">
                 <div className="summary-row">
                   <span>Subtotal:</span>
-                  <span>${Number(order.subtotal || 0).toFixed(2)}</span>
+                  <span>${Number(order.subtotal || order.total_price || 0).toFixed(2)}</span>
                 </div>
+                {order.discount_percentage > 0 && (
+                  <div className="summary-row discount">
+                    <span>Discount ({order.discount_percentage}%):</span>
+                    <span>-${((Number(order.total_price || 0) * Number(order.discount_percentage)) / 100).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="summary-row total">
                   <span>Total:</span>
-                  <span>${Number(order.total || 0).toFixed(2)}</span>
+                  <span>${Number(order.discounted_total_price || order.total || order.total_price || 0).toFixed(2)}</span>
                 </div>
               </div>
 
               <div className="order-actions">
+                <button
+                  className="btn-primary"
+                  onClick={() => handleDownloadInvoice(order)}
+                  title="Download invoice as HTML file"
+                >
+                  📄 Download Invoice
+                </button>
                 {canCancel(order.status) && (
                   <button
                     className="btn-secondary"

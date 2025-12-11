@@ -185,6 +185,11 @@
   font-size: 0.95rem;
 }
 
+.summary-row.discount {
+  color: #16a34a;
+  font-weight: 600;
+}
+
 .summary-row.total {
   font-size: 1.1rem;
   font-weight: 600;
@@ -197,6 +202,27 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+.btn-primary {
+  background: #2563eb;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 18px;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-primary:hover {
+  background: #1d4ed8;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #94a3b8;
 }
 
 .btn-secondary {
