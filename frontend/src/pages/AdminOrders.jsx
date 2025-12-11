@@ -4,9 +4,8 @@ import { fetchAllOrders, updateOrderStatus, applyDiscount } from "../api/orders"
 import "./AdminOrders.css";
 
 const STATUS_OPTIONS = [
-  { value: "pending", label: "Pending" },
   { value: "processing", label: "Processing" },
-  { value: "shipped", label: "Shipped" },
+  { value: "in-transit", label: "In Transit" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
   { value: "return_requested", label: "Return Requested" },
@@ -87,11 +86,11 @@ export default function AdminOrders() {
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      pending: { label: "Pending", className: "status-pending" },
       processing: { label: "Processing", className: "status-processing" },
-      shipped: { label: "Shipped", className: "status-shipped" },
+      "in-transit": { label: "In Transit", className: "status-shipped" },
       delivered: { label: "Delivered", className: "status-delivered" },
       cancelled: { label: "Cancelled", className: "status-cancelled" },
+      cancalled: { label: "Cancelled", className: "status-cancelled" },
       return_requested: { label: "Return Requested", className: "status-return" },
       returned: { label: "Returned", className: "status-returned" },
     };

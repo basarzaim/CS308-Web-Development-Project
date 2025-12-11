@@ -6,7 +6,8 @@
       "Bash(python manage.py runserver:*)",
       "Bash(cat:*)",
       "Bash(curl:*)",
-      "Bash(python manage.py shell:*)"
+      "Bash(python manage.py shell:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
