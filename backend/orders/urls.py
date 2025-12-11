@@ -9,6 +9,7 @@ from .views import (
     AdminOrderListView,
     AdminOrderStatusUpdateView,
     admin_update_order_status,
+    SendInvoiceView,
 )
 
 urlpatterns = [
@@ -19,6 +20,7 @@ urlpatterns = [
     path("<int:pk>/cancel/", OrderCancelView.as_view(), name="order-cancel"),
     path("<int:pk>/return/", OrderReturnView.as_view(), name="order-return"),
     path("<int:pk>/apply-discount/", ApplyDiscountView.as_view(), name="apply-discount"),
+    path("<int:pk>/send-invoice/", SendInvoiceView.as_view(), name="send-invoice"),
 
     # Admin endpoints
     path("admin/", AdminOrderListView.as_view(), name="admin-order-list"),

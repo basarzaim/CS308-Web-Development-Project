@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllOrders, updateOrderStatus } from "../api/orders";
+import { fetchAllOrders, updateOrderStatus, applyDiscount } from "../api/orders";
 import "./AdminOrders.css";
 
 const STATUS_OPTIONS = [
-  { value: "pending", label: "Pending" },
   { value: "processing", label: "Processing" },
-  { value: "shipped", label: "Shipped" },
+  { value: "in-transit", label: "In Transit" },
   { value: "delivered", label: "Delivered" },
   { value: "cancelled", label: "Cancelled" },
   { value: "return_requested", label: "Return Requested" },
@@ -20,6 +19,7 @@ export default function AdminOrders() {
   const [notice, setNotice] = useState("");
   const [processing, setProcessing] = useState(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
+  const [discountInputs, setDiscountInputs] = useState({});
 
   useEffect(() => {
     loadOrders();
@@ -60,13 +60,37 @@ export default function AdminOrders() {
     }
   }
 
+  async function handleApplyDiscount(orderId) {
+    const discount = discountInputs[orderId] || 0;
+    setProcessing((prev) => new Set(prev).add(orderId));
+    setError("");
+    setNotice("");
+    try {
+      const updatedOrder = await applyDiscount(orderId, discount);
+      setOrders((prev) =>
+        prev.map((order) => (order.id === orderId ? updatedOrder : order))
+      );
+      setNotice(`Discount of ${discount}% applied to Order #${orderId}`);
+      setTimeout(() => setNotice(""), 3000);
+      setDiscountInputs((prev) => ({ ...prev, [orderId]: "" }));
+    } catch (err) {
+      setError(err.message || "Failed to apply discount");
+    } finally {
+      setProcessing((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }
+  }
+
   const getStatusBadge = (status) => {
     const statusMap = {
-      pending: { label: "Pending", className: "status-pending" },
       processing: { label: "Processing", className: "status-processing" },
-      shipped: { label: "Shipped", className: "status-shipped" },
+      "in-transit": { label: "In Transit", className: "status-shipped" },
       delivered: { label: "Delivered", className: "status-delivered" },
       cancelled: { label: "Cancelled", className: "status-cancelled" },
+      cancalled: { label: "Cancelled", className: "status-cancelled" },
       return_requested: { label: "Return Requested", className: "status-return" },
       returned: { label: "Returned", className: "status-returned" },
     };
@@ -214,11 +238,53 @@ export default function AdminOrders() {
                       <span>${Number(order.shipping_fee || order.shipping || 0).toFixed(2)}</span>
                     </div>
                   )}
+                  {order.discount_percentage > 0 && (
+                    <div className="summary-row discount">
+                      <span>Discount ({order.discount_percentage}%):</span>
+                      <span>-${((Number(order.total_price || 0) * Number(order.discount_percentage)) / 100).toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="summary-row total">
                     <span>Total:</span>
-                    <span>${Number(order.total || order.total_price || 0).toFixed(2)}</span>
+                    <span>${Number(order.discounted_total_price || order.total || order.total_price || 0).toFixed(2)}</span>
                   </div>
                 </div>
+
+                {order.status !== "delivered" && (
+                  <div className="discount-panel">
+                    <h4>Sales Manager Discount</h4>
+                    <div className="discount-controls">
+                      <input
+                        type="number"
+                        min="0"
+                        max="90"
+                        step="1"
+                        placeholder="Discount %"
+                        value={discountInputs[order.id] || ""}
+                        onChange={(e) =>
+                          setDiscountInputs((prev) => ({
+                            ...prev,
+                            [order.id]: e.target.value,
+                          }))
+                        }
+                        disabled={processing.has(order.id)}
+                      />
+                      <button
+                        onClick={() => handleApplyDiscount(order.id)}
+                        disabled={
+                          processing.has(order.id) ||
+                          !discountInputs[order.id] ||
+                          Number(discountInputs[order.id]) < 0 ||
+                          Number(discountInputs[order.id]) > 90
+                        }
+                        className="apply-discount-btn"
+                      >
+                        Apply Discount
+                      </button>
+                    </div>
+                    <p className="discount-note">Discount must be between 0-90%</p>
+                  </div>
+                )}
 
                 <div className="admin-order-actions">
                   <label>

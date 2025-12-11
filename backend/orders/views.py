@@ -11,6 +11,12 @@ from .models import Order, OrderItem
 from .serializers import OrderSerializer
 from rest_framework.decorators import api_view, permission_classes
 from decimal import Decimal   
+from django.core.mail import send_mail
+from .utils import generate_invoice_pdf
+from django.core.mail import EmailMessage
+from rest_framework.permissions import IsAuthenticated
+
+
 
 
 class CheckoutView(APIView):
@@ -278,3 +284,30 @@ class ApplyDiscountView(APIView):
 
         serializer = OrderSerializer(order)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class SendInvoiceView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk, user=request.user)
+
+        # PDF oluştur
+        pdf_buffer = generate_invoice_pdf(order)
+
+        # Email oluştur
+        email = EmailMessage(
+            subject=f"Invoice for Order #{order.id}",
+            body="Thank you for your purchase. Your invoice is attached.",
+            to=[request.user.email],
+        )
+
+        # PDF'i maile ekle
+        email.attach(
+            filename=f"invoice_{order.id}.pdf",
+            content=pdf_buffer.read(),
+            mimetype="application/pdf"
+        )
+
+        email.send()
+
+        return Response({"message": "Invoice sent successfully!"})

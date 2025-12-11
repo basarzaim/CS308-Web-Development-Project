@@ -7,7 +7,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "stock", "warranty", "description", "rating"]
+        fields = ["id", "name", "price", "stock", "warranty", "description", "rating", "image"]
 
     def get_rating(self, obj):
         """Calculate average rating from reviews - optimized with aggregation"""
