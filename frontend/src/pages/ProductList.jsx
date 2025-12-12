@@ -59,9 +59,9 @@ export default function ProductList() {
       case "price-desc":
         return "-price";
       case "rating-desc":
-        return "-rating"; // Backend'de 'rating' alanı varsa
+        return "-rating_sort"; // Use rating_sort to put null ratings last
       case "name-asc":
-        return "name"; // Backend'de 'name' alanı varsa
+        return "name";
       case "name-desc":
         return "-name";
       default:
