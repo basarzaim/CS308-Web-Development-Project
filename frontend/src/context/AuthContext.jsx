@@ -30,10 +30,8 @@ export function AuthProvider({ children }) {
           setToken(null);
           setUser(null);
         }
-      } else {
-        // Clear guest cart when logged out
-        clearGuestCart();
       }
+      // Don't clear guest cart when not authenticated - let guest users keep their cart before login
       setLoading(false);
     }
     loadUser();

@@ -188,24 +188,28 @@ export async function clearCart() {
 // Merge guest cart to backend on login
 export async function mergeGuestCartIfAny() {
   if (!isAuthenticated()) return;
-  
+
   const guestItems = getGuestCart();
   if (!guestItems.length) return;
 
+  console.log(`Merging ${guestItems.length} items from guest cart to backend...`);
+
   try {
-    // Use backend merge endpoint
-    await cartAPI.mergeGuestCart();
-    clearGuestCart();
-  } catch (error) {
-    console.error("Failed to merge cart:", error);
-    // Fallback: add items one by one
+    // Add guest cart items to backend one by one
     for (const item of guestItems) {
       try {
         await cartAPI.addToCart(item.productId, item.qty);
-      } catch {
-        // ignore individual failures
+        console.log(`✓ Merged: Product ${item.productId} x ${item.qty}`);
+      } catch (error) {
+        console.error(`✗ Failed to merge product ${item.productId}:`, error.message);
       }
     }
+    // Clear guest cart after successful merge
     clearGuestCart();
+    console.log("✓ Guest cart merged and cleared");
+    // Dispatch event to update cart badge
+    window.dispatchEvent(new Event('cartUpdated'));
+  } catch (error) {
+    console.error("Failed to merge cart:", error);
   }
 }
