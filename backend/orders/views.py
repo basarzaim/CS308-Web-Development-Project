@@ -11,20 +11,23 @@ from .models import Order, OrderItem
 from .serializers import OrderSerializer
 from rest_framework.decorators import api_view, permission_classes
 from decimal import Decimal
-from django.core.mail import send_mail, EmailMessage
+from django.core.mail import EmailMessage
 from .utils import generate_invoice_pdf
 from django.conf import settings
 
 
 def send_order_confirmation_email(order):
     """
-    Send order confirmation email to customer with order details.
+    Send order confirmation email to customer with order details and PDF invoice attachment.
     Uses threading to avoid blocking the request.
     """
     import threading
 
     def send_email_async():
         try:
+            from django.core.mail import EmailMessage
+            from .utils import generate_invoice_pdf
+
             # Prepare email subject
             subject = f"Order Confirmation - Order #{order.id}"
 
@@ -68,6 +71,8 @@ Shipping Address:
 {order.shipping_city or 'N/A'}
 Phone: {order.shipping_phone or 'N/A'}
 
+Your invoice is attached as a PDF for your records.
+
 You can track your order status by logging into your account at our website.
 
 Thank you for shopping with us!
@@ -80,15 +85,27 @@ This is an automated email. Please do not reply to this message.
 If you have any questions, contact us at support@cs308ecommerce.com
             """
 
-            # Send email
-            send_mail(
+            # Generate PDF invoice
+            pdf_buffer = generate_invoice_pdf(order)
+
+            # Create email with attachment
+            email = EmailMessage(
                 subject=subject,
-                message=message,
+                body=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[order.user.email],
-                fail_silently=True,
+                to=[order.user.email],
             )
-            print(f"✓ Email sent successfully to {order.user.email}")
+
+            # Attach invoice PDF
+            email.attach(
+                filename=f"invoice_{order.id}.pdf",
+                content=pdf_buffer.read(),
+                mimetype="application/pdf"
+            )
+
+            # Send email
+            email.send(fail_silently=True)
+            print(f"✓ Order confirmation + invoice sent to {order.user.email}")
         except Exception as e:
             print(f"✗ Email failed: {e}")
 

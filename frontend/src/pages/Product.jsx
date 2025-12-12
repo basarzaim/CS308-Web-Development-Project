@@ -211,6 +211,10 @@ export default function Product() {
             Product Details
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Product ID:</span>
+              <span style={{ color: '#111827', fontFamily: 'monospace' }}>#{product.id}</span>
+            </div>
             {product.model && (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Model:</span>
