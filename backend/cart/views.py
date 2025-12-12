@@ -13,11 +13,27 @@ class AddToCartView(views.APIView):
         qty = int(request.data.get("quantity", 1))
         product = get_object_or_404(Product, pk=product_id)
 
+        # Check if product is out of stock
+        if not product.stock or product.stock <= 0:
+            return response.Response(
+                {"error": "This product is out of stock"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if request.user.is_authenticated:
             item, _ = CartItem.objects.get_or_create(
                 user=request.user, product=product, defaults={"quantity": 0}
             )
-            item.quantity += max(1, qty)
+            new_quantity = item.quantity + max(1, qty)
+
+            # Check if new quantity exceeds stock
+            if new_quantity > product.stock:
+                return response.Response(
+                    {"error": f"Only {product.stock} items available in stock. You already have {item.quantity} in your cart."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            item.quantity = new_quantity
             item.save()
             return response.Response({"message": "added to user cart"}, status=status.HTTP_200_OK)
         else:
@@ -56,15 +72,23 @@ class UpdateCartItemView(views.APIView):
     def patch(self, request, item_id):
         cart_item = get_object_or_404(CartItem, pk=item_id, user=request.user)
         quantity = request.data.get("quantity")
-        
+
         if quantity is not None:
             qty = int(quantity)
             if qty <= 0:
                 cart_item.delete()
                 return response.Response({"message": "Item removed"}, status=status.HTTP_200_OK)
+
+            # Check if quantity exceeds stock
+            if qty > cart_item.product.stock:
+                return response.Response(
+                    {"error": f"Only {cart_item.product.stock} items available in stock"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
             cart_item.quantity = qty
             cart_item.save()
-        
+
         return response.Response({
             "id": cart_item.id,
             "product_id": cart_item.product_id,
@@ -102,15 +126,62 @@ class MergeCartView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        sc = get_session_cart(request)
+        # Accept cart items from request body (from localStorage) or fallback to session
+        cart_items = request.data.get("items", [])
         merged = 0
-        for pid_str, qty in sc.items():
-            product = get_object_or_404(Product, pk=int(pid_str))
-            item, _ = CartItem.objects.get_or_create(
-                user=request.user, product=product, defaults={"quantity": 0}
-            )
-            item.quantity += int(qty)
-            item.save()
-            merged += 1
-        clear_session_cart(request)
+        
+        # If items are provided in request body (from localStorage)
+        if cart_items:
+            for item_data in cart_items:
+                product_id = item_data.get("productId") or item_data.get("product_id")
+                qty = int(item_data.get("qty") or item_data.get("quantity") or 1)
+                
+                if not product_id:
+                    continue
+                    
+                try:
+                    product = get_object_or_404(Product, pk=int(product_id))
+                    cart_item, created = CartItem.objects.get_or_create(
+                        user=request.user, 
+                        product=product, 
+                        defaults={"quantity": 0}
+                    )
+                    new_quantity = cart_item.quantity + qty
+                    
+                    # Check stock availability
+                    if new_quantity > product.stock:
+                        # Set to max available stock
+                        new_quantity = product.stock
+                    
+                    cart_item.quantity = new_quantity
+                    cart_item.save()
+                    merged += 1
+                except Exception as e:
+                    # Skip items that fail to merge
+                    continue
+        
+        # Also merge from session cart if it exists (for backward compatibility)
+        sc = get_session_cart(request)
+        if sc:
+            for pid_str, qty in sc.items():
+                try:
+                    product = get_object_or_404(Product, pk=int(pid_str))
+                    cart_item, created = CartItem.objects.get_or_create(
+                        user=request.user, 
+                        product=product, 
+                        defaults={"quantity": 0}
+                    )
+                    new_quantity = cart_item.quantity + int(qty)
+                    
+                    # Check stock availability
+                    if new_quantity > product.stock:
+                        new_quantity = product.stock
+                    
+                    cart_item.quantity = new_quantity
+                    cart_item.save()
+                    merged += 1
+                except Exception:
+                    continue
+            clear_session_cart(request)
+        
         return response.Response({"merged_items": merged}, status=status.HTTP_200_OK)

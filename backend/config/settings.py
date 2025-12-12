@@ -118,8 +118,7 @@ REST_FRAMEWORK = {
         'rest_framework.filters.SearchFilter',
         'rest_framework.filters.OrderingFilter',
     ),
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
-    'PAGE_SIZE': 12,
+    'DEFAULT_PAGINATION_CLASS': 'config.pagination.DynamicPageSizePagination',
 }
 
 
@@ -205,5 +204,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.Customer'
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "no-reply@cs308.local"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "sandbox.smtp.mailtrap.io"
+EMAIL_PORT = 25
+EMAIL_USE_TLS = True
+
+EMAIL_HOST_USER = "6d7963a617fa45"
+EMAIL_HOST_PASSWORD = "64b0979d77b310"#"12345678Emir!"
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

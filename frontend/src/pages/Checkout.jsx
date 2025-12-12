@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { fetchProductById } from "../api/products";
 import { createOrder } from "../api/orders";
 import {
@@ -26,7 +26,8 @@ const SHIPPING_THRESHOLD = 1000;
 const SHIPPING_FEE = 49.9;
 
 export default function Checkout() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,10 +35,23 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
   const [orderResult, setOrderResult] = useState(null);
   const [phoneError, setPhoneError] = useState("");
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
-    hydrateCart();
-  }, [isAuthenticated]);
+    // Wait for auth to finish loading before checking authentication
+    if (authLoading) {
+      return; // Don't do anything while auth is loading
+    }
+
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setShowLoginModal(true);
+      setLoading(false);
+    } else {
+      setShowLoginModal(false);
+      hydrateCart();
+    }
+  }, [isAuthenticated, authLoading]);
 
   const totals = useMemo(() => {
     const subtotal = cartItems.reduce((sum, item) => {
@@ -277,6 +291,35 @@ export default function Checkout() {
     } finally {
       setPlacing(false);
     }
+  }
+
+  // Show login modal if not authenticated
+  if (showLoginModal) {
+    return (
+      <div className="order-modal-overlay">
+        <div className="order-modal">
+          <div className="order-modal-icon" style={{ backgroundColor: '#f59e0b' }}>!</div>
+          <h2 className="order-modal-title">Login Required</h2>
+          <p className="order-modal-message">
+            You need to be logged in to complete your purchase. Please log in or create an account to continue.
+          </p>
+          <div className="order-modal-actions">
+            <button
+              className="order-modal-btn primary"
+              onClick={() => navigate('/login', { state: { from: '/checkout' } })}
+            >
+              Go to Login
+            </button>
+            <button
+              className="order-modal-btn secondary"
+              onClick={() => navigate('/products')}
+            >
+              Continue Shopping
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (loading) {

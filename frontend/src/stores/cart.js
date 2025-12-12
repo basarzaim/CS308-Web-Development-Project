@@ -97,13 +97,38 @@ export async function addToCart(productId, qty = 1) {
       return true;
     } catch (error) {
       console.error("Failed to add to cart:", error);
-      // Fallback to guest cart
-      addToGuestCart(id, qty);
-      return false;
+      // Don't fallback to guest cart for authenticated users - throw error
+      throw error;
     }
   } else {
-    addToGuestCart(id, qty);
-    return true;
+    // For guest users, validate stock before adding
+    try {
+      const { fetchProductById } = await import('../api/products');
+      const product = await fetchProductById(id);
+
+      // Check current quantity in cart
+      const guestItems = getGuestCart();
+      const existingItem = guestItems.find((x) => normalizeId(x.productId) === id);
+      const currentQty = existingItem ? existingItem.qty : 0;
+      const newTotalQty = currentQty + qty;
+
+      // Validate against stock
+      if (!product.stock || product.stock <= 0) {
+        throw new Error("This product is out of stock");
+      }
+
+      if (newTotalQty > product.stock) {
+        throw new Error(`Only ${product.stock} items available in stock. You already have ${currentQty} in your cart.`);
+      }
+
+      // If validation passes, add to guest cart
+      addToGuestCart(id, qty);
+      window.dispatchEvent(new Event('cartUpdated'));
+      return true;
+    } catch (error) {
+      console.error("Failed to add to cart:", error);
+      throw error;
+    }
   }
 }
 
@@ -127,12 +152,31 @@ export async function updateCartQty(productId, qty = 1) {
       return true;
     } catch (error) {
       console.error("Failed to update cart:", error);
-      updateGuestCartQty(id, qty);
-      return false;
+      throw error;
     }
   } else {
-    updateGuestCartQty(id, qty);
-    return true;
+    // For guest users, validate stock before updating
+    try {
+      const { fetchProductById } = await import('../api/products');
+      const product = await fetchProductById(id);
+
+      // Validate against stock
+      if (!product.stock || product.stock <= 0) {
+        throw new Error("This product is out of stock");
+      }
+
+      if (qty > product.stock) {
+        throw new Error(`Only ${product.stock} items available in stock`);
+      }
+
+      // If validation passes, update guest cart
+      updateGuestCartQty(id, qty);
+      window.dispatchEvent(new Event('cartUpdated'));
+      return true;
+    } catch (error) {
+      console.error("Failed to update cart:", error);
+      throw error;
+    }
   }
 }
 
@@ -188,24 +232,28 @@ export async function clearCart() {
 // Merge guest cart to backend on login
 export async function mergeGuestCartIfAny() {
   if (!isAuthenticated()) return;
-  
+
   const guestItems = getGuestCart();
   if (!guestItems.length) return;
 
+  console.log(`Merging ${guestItems.length} items from guest cart to backend...`);
+
   try {
-    // Use backend merge endpoint
-    await cartAPI.mergeGuestCart();
-    clearGuestCart();
-  } catch (error) {
-    console.error("Failed to merge cart:", error);
-    // Fallback: add items one by one
+    // Add guest cart items to backend one by one
     for (const item of guestItems) {
       try {
         await cartAPI.addToCart(item.productId, item.qty);
-      } catch {
-        // ignore individual failures
+        console.log(`✓ Merged: Product ${item.productId} x ${item.qty}`);
+      } catch (error) {
+        console.error(`✗ Failed to merge product ${item.productId}:`, error.message);
       }
     }
+    // Clear guest cart after successful merge
     clearGuestCart();
+    console.log("✓ Guest cart merged and cleared");
+    // Dispatch event to update cart badge
+    window.dispatchEvent(new Event('cartUpdated'));
+  } catch (error) {
+    console.error("Failed to merge cart:", error);
   }
 }

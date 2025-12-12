@@ -34,9 +34,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    address = serializers.CharField(source='home_address', allow_blank=True, required=False)
-
     class Meta:
         model = Customer
-        fields = ("id", "email", "username", "first_name", "last_name", "phone", "address", "taxID", "home_address")
-        read_only_fields = ("id", "email")
+        fields = ("id", "email", "username", "first_name", "last_name", "role", "is_staff")
+        read_only_fields = ("id", "email", "role", "is_staff")

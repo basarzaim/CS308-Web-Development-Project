@@ -125,14 +125,17 @@ export async function clearCart() {
   }
 }
 
-export async function mergeGuestCart() {
+export async function mergeGuestCart(guestCartItems = []) {
   if (USE_MOCK) {
     await wait(100);
-    return { merged_items: 0 };
+    return { merged_items: guestCartItems.length };
   }
 
   try {
-    const { data } = await api.post("/cart/merge/");
+    // Send guest cart items from localStorage to backend
+    const { data } = await api.post("/cart/merge/", {
+      items: guestCartItems,
+    });
     return data;
   } catch (error) {
     throw new Error(extractMessage(error, "Failed to merge cart"));

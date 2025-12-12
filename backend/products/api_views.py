@@ -18,14 +18,18 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
     # search: ?search=iphone
     search_fields = ["name", "description"]
 
-    # sort: ?ordering=price , ?ordering=-price
-    ordering_fields = ["price", "name", "stock", "warranty"]
+    # sort: ?ordering=price , ?ordering=-price , ?ordering=-rating
+    ordering_fields = ["price", "name", "stock", "warranty", "rating", "rating_sort"]
 
     def get_queryset(self):
         # Optimize: annotate rating at queryset level to avoid N+1 queries
-        from django.db.models import Avg
+        from django.db.models import Avg, Value
+        from django.db.models.functions import Coalesce
+
         queryset = Product.objects.all().annotate(
-            rating=Avg('reviews__score')
+            rating=Avg('reviews__score'),
+            # Add a field for sorting: null ratings get -1 so they appear last when descending
+            rating_sort=Coalesce(Avg('reviews__score'), Value(-1.0))
         )
 
         # CATEGORY FILTER
