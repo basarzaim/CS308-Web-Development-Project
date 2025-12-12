@@ -272,7 +272,7 @@ export async function fetchAllOrders() {
 }
 
 export async function updateOrderStatus(orderId, newStatus) {
-  const validStatuses = ["pending", "processing", "shipped", "delivered", "cancelled", "return_requested", "returned"];
+  const validStatuses = ["pending", "processing", "in-transit", "shipped", "delivered", "cancelled", "return_requested", "returned"];
   if (!validStatuses.includes(newStatus)) {
     throw new Error(`Invalid status. Must be one of: ${validStatuses.join(", ")}`);
   }
