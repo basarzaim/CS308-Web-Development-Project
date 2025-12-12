@@ -19,25 +19,30 @@ from django.conf import settings
 def send_order_confirmation_email(order):
     """
     Send order confirmation email to customer with order details.
+    Uses threading to avoid blocking the request.
     """
-    # Prepare email subject
-    subject = f"Order Confirmation - Order #{order.id}"
+    import threading
 
-    # Prepare email body
-    items_text = "\n".join([
-        f"  - {item.product.name} x {item.quantity} = ${float(item.unit_price * item.quantity):.2f}"
-        for item in order.items.all()
-    ])
+    def send_email_async():
+        try:
+            # Prepare email subject
+            subject = f"Order Confirmation - Order #{order.id}"
 
-    # Calculate discount if any
-    discount_text = ""
-    if order.discount_percentage and order.discount_percentage > 0:
-        discount_amount = (order.total_price * order.discount_percentage) / 100
-        discount_text = f"\nDiscount ({order.discount_percentage}%): -${float(discount_amount):.2f}"
+            # Prepare email body
+            items_text = "\n".join([
+                f"  - {item.product.name} x {item.quantity} = ${float(item.unit_price * item.quantity):.2f}"
+                for item in order.items.all()
+            ])
 
-    final_total = order.discounted_total_price()
+            # Calculate discount if any
+            discount_text = ""
+            if order.discount_percentage and order.discount_percentage > 0:
+                discount_amount = (order.total_price * order.discount_percentage) / 100
+                discount_text = f"\nDiscount ({order.discount_percentage}%): -${float(discount_amount):.2f}"
 
-    message = f"""
+            final_total = order.discounted_total_price()
+
+            message = f"""
 Hello {order.shipping_name or order.user.username},
 
 Thank you for your order! Your order has been received and is being processed.
@@ -73,16 +78,24 @@ CS308 E-Commerce Team
 ---
 This is an automated email. Please do not reply to this message.
 If you have any questions, contact us at support@cs308ecommerce.com
-    """
+            """
 
-    # Send email
-    send_mail(
-        subject=subject,
-        message=message,
-        from_email=settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[order.user.email],
-        fail_silently=False,
-    )
+            # Send email
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[order.user.email],
+                fail_silently=True,
+            )
+            print(f"✓ Email sent successfully to {order.user.email}")
+        except Exception as e:
+            print(f"✗ Email failed: {e}")
+
+    # Send email in background thread so it doesn't block the response
+    email_thread = threading.Thread(target=send_email_async)
+    email_thread.daemon = True
+    email_thread.start()
 
 
 
