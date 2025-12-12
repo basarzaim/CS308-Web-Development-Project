@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Desk Lamp LED",
+    "description": "Adjustable LED desk lamp with touch controls",
+    "price": "39.99",
+    "stock": 0,
+    "warranty": 12,
+    "category": "smart_home",
+    "image": "/media/products/image_2025-12-11_204945485.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "External SSD 1TB",
+    "description": "Portable SSD with USB 3.2 Gen 2 support",
+    "price": "129.99",
+    "stock": 0,
+    "warranty": 60,
+    "category": "storage",
+    "image": "/media/products/image_2025-12-11_205019436.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "Webcam HD Pro",
+    "description": "1080p webcam with auto-focus and stereo microphones",
+    "price": "79.99",
+    "stock": 0,
+    "warranty": 12,
+    "category": "photo_video",
+    "image": "/media/products/image_2025-12-11_205036911.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "Laptop Pro 15",
+    "description": "High-performance laptop with 16GB RAM and 512GB SSD",
+    "price": "1299.99",
+    "stock": 0,
+    "warranty": 24,
+    "category": "laptops",
+    "image": "/media/products/image_2025-12-11_205239826.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "Wireless Mouse",
+    "description": "Ergonomic wireless mouse with precision tracking",
+    "price": "29.99",
+    "stock": 150,
+    "warranty": 12,
+    "category": "peripherals",
+    "image": "/media/products/image_2025-12-11_205216292.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "Mechanical Keyboard",
+    "description": "RGB mechanical keyboard with Cherry MX switches",
+    "price": "89.99",
+    "stock": 75,
+    "warranty": 12,
+    "category": "peripherals",
+    "image": "/media/products/image_2025-12-11_205200331.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "27\" 4K Monitor",
+    "description": "Ultra HD 4K monitor with HDR support",
+    "price": "399.99",
+    "stock": 40,
+    "warranty": 36,
+    "category": "monitors",
+    "image": "/media/products/image_2025-12-11_205146077.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "Noise Cancelling Headphones",
+    "description": "Premium wireless headphones with active noise cancellation",
+    "price": "249.99",
+    "stock": 60,
+    "warranty": 12,
+    "category": "audio",
+    "image": "/media/products/image_2025-12-11_205113728.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "Gaming Chair",
+    "description": "Ergonomic gaming chair with lumbar support",
+    "price": "299.99",
+    "stock": 2,
+    "warranty": 24,
+    "category": "smart_home",
+    "image": "/media/products/image_2025-12-11_205002354.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  },
+  {
+    "name": "USB-C Hub",
+    "description": "7-in-1 USB-C hub with HDMI and Ethernet",
+    "price": "49.99",
+    "stock": 171,
+    "warranty": 6,
+    "category": "accessories",
+    "image": "/media/products/image_2025-12-11_205131674.png",
+    "model": "",
+    "serial_number": null,
+    "distributor": ""
+  }
+]
