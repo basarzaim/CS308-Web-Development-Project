@@ -198,6 +198,47 @@ export default function Product() {
             Warranty: {product.warranty != null ? `${product.warranty} months` : "Not specified"}
           </span>
         </div>
+
+        {/* Product Details */}
+        <div className="product-details" style={{
+          marginTop: '20px',
+          padding: '16px',
+          backgroundColor: '#f9fafb',
+          borderRadius: '8px',
+          border: '1px solid #e5e7eb'
+        }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+            Product Details
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {product.model && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Model:</span>
+                <span style={{ color: '#111827' }}>{product.model}</span>
+              </div>
+            )}
+            {product.serial_number && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Serial Number:</span>
+                <span style={{ color: '#111827', fontFamily: 'monospace' }}>{product.serial_number}</span>
+              </div>
+            )}
+            {product.distributor && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Distributor:</span>
+                <span style={{ color: '#111827' }}>{product.distributor}</span>
+              </div>
+            )}
+            {product.category && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Category:</span>
+                <span style={{ color: '#111827', textTransform: 'capitalize' }}>
+                  {product.category.replace('_', ' ')}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
         <div className="product-actions">
           {!isOutOfStock && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
