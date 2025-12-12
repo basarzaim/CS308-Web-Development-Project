@@ -10,12 +10,79 @@ from products.models import Product
 from .models import Order, OrderItem
 from .serializers import OrderSerializer
 from rest_framework.decorators import api_view, permission_classes
-from decimal import Decimal   
-from django.core.mail import send_mail
+from decimal import Decimal
+from django.core.mail import send_mail, EmailMessage
 from .utils import generate_invoice_pdf
-from django.core.mail import EmailMessage
-from rest_framework.permissions import IsAuthenticated
+from django.conf import settings
 
+
+def send_order_confirmation_email(order):
+    """
+    Send order confirmation email to customer with order details.
+    """
+    # Prepare email subject
+    subject = f"Order Confirmation - Order #{order.id}"
+
+    # Prepare email body
+    items_text = "\n".join([
+        f"  - {item.product.name} x {item.quantity} = ${float(item.unit_price * item.quantity):.2f}"
+        for item in order.items.all()
+    ])
+
+    # Calculate discount if any
+    discount_text = ""
+    if order.discount_percentage and order.discount_percentage > 0:
+        discount_amount = (order.total_price * order.discount_percentage) / 100
+        discount_text = f"\nDiscount ({order.discount_percentage}%): -${float(discount_amount):.2f}"
+
+    final_total = order.discounted_total_price()
+
+    message = f"""
+Hello {order.shipping_name or order.user.username},
+
+Thank you for your order! Your order has been received and is being processed.
+
+Order Details:
+--------------
+Order Number: #{order.id}
+Order Date: {order.created_at.strftime('%B %d, %Y at %I:%M %p')}
+Status: {order.get_status_display()}
+
+Items Ordered:
+{items_text}
+
+Order Summary:
+--------------
+Subtotal: ${float(order.total_price):.2f}{discount_text}
+Total: ${float(final_total):.2f}
+
+Shipping Address:
+-----------------
+{order.shipping_name or 'N/A'}
+{order.shipping_address or 'N/A'}
+{order.shipping_city or 'N/A'}
+Phone: {order.shipping_phone or 'N/A'}
+
+You can track your order status by logging into your account at our website.
+
+Thank you for shopping with us!
+
+Best regards,
+CS308 E-Commerce Team
+
+---
+This is an automated email. Please do not reply to this message.
+If you have any questions, contact us at support@cs308ecommerce.com
+    """
+
+    # Send email
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[order.user.email],
+        fail_silently=False,
+    )
 
 
 
@@ -81,6 +148,13 @@ class CheckoutView(APIView):
                 # clear cart
                 cart_items.delete()
 
+                # Send order confirmation email
+                try:
+                    send_order_confirmation_email(order)
+                except Exception as e:
+                    # Log error but don't fail the order creation
+                    print(f"Failed to send order confirmation email: {e}")
+
                 serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -126,6 +200,13 @@ class CheckoutView(APIView):
 
             order.total_price = total
             order.save()
+
+            # Send order confirmation email
+            try:
+                send_order_confirmation_email(order)
+            except Exception as e:
+                # Log error but don't fail the order creation
+                print(f"Failed to send order confirmation email: {e}")
 
             serializer = OrderSerializer(order)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -328,3 +409,26 @@ class SendInvoiceView(APIView):
         email.send()
 
         return Response({"message": "Invoice sent successfully!"})
+
+
+class DownloadInvoiceView(APIView):
+    """
+    Download PDF invoice for an order.
+    Returns the PDF file directly as a download.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        from django.http import HttpResponse
+
+        # Get order for current user only
+        order = get_object_or_404(Order, pk=pk, user=request.user)
+
+        # Generate PDF
+        pdf_buffer = generate_invoice_pdf(order)
+
+        # Create HTTP response with PDF
+        response = HttpResponse(pdf_buffer.read(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="invoice_{order.id}.pdf"'
+
+        return response

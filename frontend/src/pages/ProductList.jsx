@@ -9,23 +9,6 @@ import { getProducts } from "../services/products";
 import { useAuth } from "../context/AuthContext";
 import "./ProductList.css";
 
-// Sabit renk listesi – component dışına aldım
-const COLOR_OPTIONS = [
-  "Black",
-  "White",
-  "Red",
-  "Blue",
-  "Green",
-  "Yellow",
-  "Orange",
-  "Purple",
-  "Pink",
-  "Gray",
-  "Brown",
-  "Silver",
-  "Gold",
-];
-
 // Category list matching backend Product.CATEGORY_CHOICES
 const CATEGORY_OPTIONS = [
   { slug: "phones", name: "Phones" },
@@ -54,8 +37,6 @@ export default function ProductList() {
   const [search, setSearch] = useState("");
   const debounced = useDebounce(search, 350);
   const [category, setCategory] = useState(""); // slug
-  const [brand, setBrand] = useState("");
-  const [color, setColor] = useState("");
   const [sort, setSort] = useState("featured");
   const [pageSize, setPageSize] = useState(12);
   const [page, setPage] = useState(1);
@@ -140,9 +121,6 @@ export default function ProductList() {
       search: debounced || undefined,
       category: category || undefined,
       ordering: getBackendOrdering(sort) || undefined,
-      // Backend'de destekliyorsan:
-      brand: brand || undefined,
-      color: color || undefined,
     };
 
     getProducts(params)
@@ -181,18 +159,7 @@ export default function ProductList() {
     return () => {
       ignore = true;
     };
-  }, [page, pageSize, debounced, category, sort, brand, color]);
-
-  // Marka listesi – mevcut ürünlerden derive et
-  const availableBrands = useMemo(() => {
-    const brands = new Set();
-    items.forEach((p) => {
-      if (p.brand) brands.add(p.brand);
-    });
-    return Array.from(brands).sort();
-  }, [items]);
-
-  const availableColors = COLOR_OPTIONS;
+  }, [page, pageSize, debounced, category, sort]);
 
   const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
 
@@ -285,13 +252,11 @@ export default function ProductList() {
         <aside className="pl-sidebar">
           <div className="pl-sidebar-header">
             <h3>Filters</h3>
-            {(category || brand || color) && (
+            {category && (
               <button
                 className="pl-clear-filters"
                 onClick={() => {
                   setCategory("");
-                  setBrand("");
-                  setColor("");
                   setPage(1);
                 }}
               >
@@ -316,48 +281,6 @@ export default function ProductList() {
                   <option key={c.slug} value={c.slug}>
                     {c.name}
                     {categoryCounts[c.slug] != null ? ` (${categoryCounts[c.slug]})` : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="pl-filter-section">
-            <label className="pl-filter-label">
-              <span>Brand</span>
-              <select
-                className="pl-select"
-                value={brand}
-                onChange={(e) => {
-                  setBrand(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All brands</option>
-                {availableBrands.map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          <div className="pl-filter-section">
-            <label className="pl-filter-label">
-              <span>Color</span>
-              <select
-                className="pl-select"
-                value={color}
-                onChange={(e) => {
-                  setColor(e.target.value);
-                  setPage(1);
-                }}
-              >
-                <option value="">All colors</option>
-                {availableColors.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
                   </option>
                 ))}
               </select>

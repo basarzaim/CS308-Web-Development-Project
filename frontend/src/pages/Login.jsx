@@ -1,16 +1,20 @@
 // src/pages/Login.jsx
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { login as loginRequest } from "../services/auth";
 import { useAuth } from "../context/AuthContext";
 import "./Login.css"
 
 export default function Login() {
   const nav = useNavigate();
+  const location = useLocation();
   const { login } = useAuth(); // AuthContext login
   const [f, setF] = useState({ email: "", password: "" });
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Get the page user came from (if redirected from checkout)
+  const from = location.state?.from || "/";
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -27,7 +31,8 @@ export default function Login() {
         login(data.access, data.refresh || "");
       }
 
-      nav("/"); 
+      // Redirect back to checkout if user was redirected from there
+      nav(from); 
     } catch (e) {
       const r = e?.response;
       setErr(
@@ -45,6 +50,18 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <h1>Login</h1>
+        {from === '/checkout' && (
+          <div className="info-message" style={{
+            backgroundColor: '#fef3c7',
+            color: '#92400e',
+            padding: '12px',
+            borderRadius: '6px',
+            marginBottom: '16px',
+            fontSize: '14px'
+          }}>
+            Please log in to complete your purchase
+          </div>
+        )}
         {err && <div className="error-message">{err}</div>}
         <form onSubmit={onSubmit} className="login-form">
           <div className="form-group">

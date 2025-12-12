@@ -31,6 +31,8 @@ export default function Product() {
   const [ratingNotice, setRatingNotice] = useState("");
   const [ratingError, setRatingError] = useState("");
   const [cartNotice, setCartNotice] = useState("");
+  const [cartError, setCartError] = useState("");
+  const [quantity, setQuantity] = useState(1);
 
   const productId = useMemo(() => Number(id), [id]);
   const isLoggedIn = Boolean(localStorage.getItem("access_token"));
@@ -128,14 +130,24 @@ export default function Product() {
   }
 
   async function handleAddToCart() {
+    setCartNotice("");
+    setCartError("");
     try {
-      await addToCart(productId, 1);
-      setCartNotice("Product added to cart!");
+      await addToCart(productId, quantity);
+      setCartNotice(`${quantity} item(s) added to cart!`);
+      setQuantity(1); // Reset to 1 after successful add
       setTimeout(() => setCartNotice(""), 4000);
     } catch (err) {
-      setCartNotice("Failed to add to cart");
-      setTimeout(() => setCartNotice(""), 4000);
+      const errorMsg = err.response?.data?.error || err.message || "Failed to add to cart";
+      setCartError(errorMsg);
+      setTimeout(() => setCartError(""), 6000);
     }
+  }
+
+  function handleQuantityChange(newQty) {
+    const stock = product.stock || 0;
+    const qty = Math.max(1, Math.min(newQty, stock));
+    setQuantity(qty);
   }
 
   if (loadingProduct) {
@@ -164,10 +176,10 @@ export default function Product() {
   if (!product) return null;
 
   const formattedPrice = `$${Number(product.price ?? 0).toFixed(2)}`;
-  const stockLabel =
-    product.stock > 0
-      ? `${product.stock} in stock`
-      : "Out of stock";
+  const isOutOfStock = !product.stock || product.stock <= 0;
+  const stockLabel = isOutOfStock
+    ? "Out of stock"
+    : `${product.stock} in stock`;
 
   return (
     <div className="product-page">
@@ -187,12 +199,86 @@ export default function Product() {
           </span>
         </div>
         <div className="product-actions">
-          <button type="button" className="primary-btn" onClick={handleAddToCart}>
-            Add to cart
+          {!isOutOfStock && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+              <label style={{ fontWeight: '500', fontSize: '14px' }}>Quantity:</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleQuantityChange(quantity - 1)}
+                  disabled={quantity <= 1}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: quantity <= 1 ? '#f5f5f5' : 'white',
+                    cursor: quantity <= 1 ? 'not-allowed' : 'pointer',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  −
+                </button>
+                <input
+                  type="number"
+                  min="1"
+                  max={product.stock}
+                  value={quantity}
+                  onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                  style={{
+                    width: '60px',
+                    height: '32px',
+                    textAlign: 'center',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    fontSize: '14px'
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => handleQuantityChange(quantity + 1)}
+                  disabled={quantity >= product.stock}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: '1px solid #ddd',
+                    borderRadius: '4px',
+                    background: quantity >= product.stock ? '#f5f5f5' : 'white',
+                    cursor: quantity >= product.stock ? 'not-allowed' : 'pointer',
+                    fontSize: '18px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  +
+                </button>
+                <span style={{ fontSize: '13px', color: '#666' }}>
+                  (Max: {product.stock})
+                </span>
+              </div>
+            </div>
+          )}
+          <button
+            type="button"
+            className="primary-btn"
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+            style={isOutOfStock ? {
+              opacity: 0.5,
+              cursor: 'not-allowed',
+              backgroundColor: '#ccc'
+            } : {}}
+          >
+            {isOutOfStock ? "Out of Stock" : "Add to cart"}
           </button>
           {cartNotice && (
-            <p className="success" style={{ margin: 0 }}>
+            <p className="success" style={{ margin: '8px 0 0 0' }}>
               {cartNotice} <Link to="/checkout">Go to checkout</Link>
+            </p>
+          )}
+          {cartError && (
+            <p className="error" style={{ margin: '8px 0 0 0' }}>
+              {cartError}
             </p>
           )}
         </div>
