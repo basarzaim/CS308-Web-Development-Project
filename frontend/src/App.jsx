@@ -17,6 +17,7 @@ import Profile from "./pages/Profile.jsx";
 import CommentModeration from "./pages/CommentModeration.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
 import Wishlist from "./pages/Wishlist.jsx";
+import LiveChat from "./components/LiveChat.jsx";
 
 function Navigation() {
   const { isAuthenticated, logout, user } = useAuth();
@@ -370,6 +371,8 @@ export default function App() {
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
         </Routes>
+
+        <LiveChat />
       </AuthProvider>
     </BrowserRouter>
   );
