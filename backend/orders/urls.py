@@ -11,6 +11,7 @@ from .views import (
     admin_update_order_status,
     SendInvoiceView,
     DownloadInvoiceView,
+    PaymentView,
 )
 
 urlpatterns = [
@@ -21,6 +22,7 @@ urlpatterns = [
     path("<int:pk>/cancel/", OrderCancelView.as_view(), name="order-cancel"),
     path("<int:pk>/return/", OrderReturnView.as_view(), name="order-return"),
     path("<int:pk>/apply-discount/", ApplyDiscountView.as_view(), name="apply-discount"),
+    path("<int:pk>/payment/", PaymentView.as_view(), name="payment"),
     path("<int:pk>/send-invoice/", SendInvoiceView.as_view(), name="send-invoice"),
     path("<int:pk>/download-invoice/", DownloadInvoiceView.as_view(), name="download-invoice"),
 
@@ -29,7 +31,4 @@ urlpatterns = [
     path("<int:pk>/status/", AdminOrderStatusUpdateView.as_view(), name="admin-order-status"),
     # Legacy admin status update path (kept for compatibility)
     path("admin/update-status/<int:order_id>/", admin_update_order_status),
-    path("<int:pk>/send-invoice/", SendInvoiceView.as_view(), name="send-invoice"),
-
-
 ]
