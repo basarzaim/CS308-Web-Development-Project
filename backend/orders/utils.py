@@ -6,7 +6,32 @@ from reportlab.platypus import Table, TableStyle
 import io
 from datetime import datetime
 from decimal import Decimal
+from django.db import transaction
+from products.models import Product
 
+def update_stock_after_order(order, restock=False):
+    """
+    Adjust product stock for an order.
+
+    - By default (restock=False) this will decrease stock for each order item.
+    - If `restock=True` it will increase the stock (used for cancellations/returns).
+
+    The operation is atomic to prevent race conditions.
+    """
+    with transaction.atomic():
+        for item in order.items.all():
+            product = item.product
+
+            if restock:
+                # Increase stock when restocking
+                product.stock += item.quantity
+                product.save()
+            else:
+                # Decrease stock when fulfilling an order
+                if product.stock < item.quantity:
+                    raise ValueError(f"Not enough stock for product: {product.name}")
+                product.stock -= item.quantity
+                product.save()
 
 def generate_invoice_pdf(order):
     """
