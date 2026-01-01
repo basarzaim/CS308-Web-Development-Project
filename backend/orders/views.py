@@ -128,6 +128,7 @@ class CheckoutView(APIView):
         user = request.user
         items_data = request.data.get("items") or []
         shipping_data = request.data.get("shipping", {})
+        payment_method = request.data.get("payment_method", "pending")
 
         # If no items provided, fall back to server cart for authenticated users
         use_cart = not items_data and user is not None
@@ -152,6 +153,7 @@ class CheckoutView(APIView):
                 order = Order.objects.create(
                     user=user,
                     total_price=0,
+                    payment_method=payment_method,
                     shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
                     shipping_address=shipping_data.get('address', ''),
                     shipping_city=shipping_data.get('city', ''),
@@ -210,6 +212,7 @@ class CheckoutView(APIView):
             order = Order.objects.create(
                 user=user,
                 total_price=0,
+                payment_method=payment_method,
                 shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
                 shipping_address=shipping_data.get('address', ''),
                 shipping_city=shipping_data.get('city', ''),
@@ -462,3 +465,48 @@ class DownloadInvoiceView(APIView):
         response['Content-Disposition'] = f'attachment; filename="invoice_{order.id}.pdf"'
 
         return response
+
+
+class PaymentView(APIView):
+    """
+    Process payment for an order.
+    Accepts payment_method and marks order as paid.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk, user=request.user)
+
+        payment_method = request.data.get("payment_method")
+        
+        if not payment_method:
+            return Response(
+                {"error": "payment_method is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate payment method
+        valid_methods = [choice[0] for choice in Order.PAYMENT_METHOD_CHOICES]
+        if payment_method not in valid_methods:
+            return Response(
+                {"error": f"Invalid payment_method. Must be one of: {valid_methods}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if order already paid
+        if order.is_paid:
+            return Response(
+                {"error": "Order is already paid"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Mark order as paid
+        order.payment_method = payment_method
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        order.save()
+
+        return Response(
+            OrderSerializer(order).data,
+            status=status.HTTP_200_OK
+        )
