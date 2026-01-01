@@ -14,6 +14,13 @@ class Order(models.Model):
         ('returned', 'Returned'),
     )
 
+    PAYMENT_METHOD_CHOICES = (
+        ('credit_card', 'Credit Card'),
+        ('debit_card', 'Debit Card'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('pending', 'Pending'),
+    )
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -39,6 +46,15 @@ class Order(models.Model):
         decimal_places=2,
         default=0
     )
+
+    # Payment information
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PAYMENT_METHOD_CHOICES,
+        default='pending'
+    )
+    is_paid = models.BooleanField(default=False)
+    paid_at = models.DateTimeField(null=True, blank=True)
 
     # Shipping information
     shipping_name = models.CharField(max_length=255, blank=True, default='')
