@@ -34,6 +34,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "discount_percentage",
             "discounted_total_price",
             "status",
+            "payment_method",
+            "is_paid",
+            "paid_at",
             "shipping_name",
             "shipping_address",
             "shipping_city",
@@ -48,6 +51,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "delivered_at",
+            "paid_at",
             "discounted_total_price",
         ]
 
