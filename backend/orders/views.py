@@ -120,33 +120,33 @@ class CheckoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        """
-        Accepts either:
-        - items array in the request body (authenticated user checkout)
-        - or uses authenticated user's server cart (CartItem).
-        """
         user = request.user
         items_data = request.data.get("items") or []
         shipping_data = request.data.get("shipping", {})
 
-        # If no items provided, fall back to server cart for authenticated users
         use_cart = not items_data and user is not None
 
         with transaction.atomic():
             if use_cart:
                 cart_items = CartItem.objects.filter(user=user).select_related("product")
                 if not cart_items.exists():
-                    return Response(
-                        {"error": "Your cart is empty."},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
+                    return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
-                # Validate stock
-                for item in cart_items:
-                    if item.product.stock < item.quantity:
+                req = {ci.product_id: ci.quantity for ci in cart_items}
+
+                locked = Product.objects.select_for_update().filter(id__in=req.keys())
+                locked_by_id = {p.id: p for p in locked}
+
+                missing = set(req.keys()) - set(locked_by_id.keys())
+                if missing:
+                    return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+                for pid, qty in req.items():
+                    p = locked_by_id[pid]
+                    if p.stock < qty:
                         return Response(
-                            {"error": f"Not enough stock for: {item.product.name}"},
-                            status=status.HTTP_400_BAD_REQUEST,
+                            {"error": f"Not enough stock for: {p.name}"},
+                            status=status.HTTP_409_CONFLICT,
                         )
 
                 order = Order.objects.create(
@@ -157,55 +157,64 @@ class CheckoutView(APIView):
                     shipping_city=shipping_data.get('city', ''),
                     shipping_phone=shipping_data.get('phone', '')
                 )
-                total = Decimal("0")
 
-                for item in cart_items:
+                total = Decimal("0")
+                touched_products = []
+
+                for ci in cart_items:
+                    p = locked_by_id[ci.product_id]
+
                     OrderItem.objects.create(
                         order=order,
-                        product=item.product,
-                        quantity=item.quantity,
-                        unit_price=item.product.price,
+                        product=p,
+                        quantity=ci.quantity,
+                        unit_price=p.price,
                     )
-                    total += item.product.price * item.quantity
 
-                    # decrement stock
-                    item.product.stock -= item.quantity
-                    item.product.save()
+                    total += p.price * ci.quantity
+                    p.stock -= ci.quantity
+                    touched_products.append(p)
+
+                if touched_products:
+                    Product.objects.bulk_update(touched_products, ["stock"])
 
                 order.total_price = total
                 order.save()
 
-                # clear cart
                 cart_items.delete()
 
-                # Send order confirmation email
-                try:
-                    send_order_confirmation_email(order)
-                except Exception as e:
-                    # Log error but don't fail the order creation
-                    print(f"Failed to send order confirmation email: {e}")
+                transaction.on_commit(lambda: send_order_confirmation_email(order))
 
                 serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-            # Fallback: use provided items_data (guest checkout or client-provided payload)
-            normalized = []
+            req = {}
             for raw in items_data:
                 pid = raw.get("product_id") or raw.get("productId")
                 qty = int(raw.get("quantity") or raw.get("qty") or 1)
                 if not pid:
                     return Response({"error": "product_id is required"}, status=status.HTTP_400_BAD_REQUEST)
-                product = get_object_or_404(Product, pk=int(pid))
                 qty = max(1, qty)
-                if product.stock < qty:
-                    return Response(
-                        {"error": f"Not enough stock for: {product.name}"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                normalized.append((product, qty))
+                pid = int(pid)
+                req[pid] = req.get(pid, 0) + qty
 
-            if not normalized:
+            if not req:
                 return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
+
+            locked = Product.objects.select_for_update().filter(id__in=req.keys())
+            locked_by_id = {p.id: p for p in locked}
+
+            missing = set(req.keys()) - set(locked_by_id.keys())
+            if missing:
+                return Response({"error": "Product not found."}, status=status.HTTP_404_NOT_FOUND)
+
+            for pid, qty in req.items():
+                p = locked_by_id[pid]
+                if p.stock < qty:
+                    return Response(
+                        {"error": f"Not enough stock for: {p.name}"},
+                        status=status.HTTP_409_CONFLICT,
+                    )
 
             order = Order.objects.create(
                 user=user,
@@ -215,28 +224,31 @@ class CheckoutView(APIView):
                 shipping_city=shipping_data.get('city', ''),
                 shipping_phone=shipping_data.get('phone', '')
             )
-            total = Decimal("0")
 
-            for product, qty in normalized:
+            total = Decimal("0")
+            touched_products = []
+
+            for pid, qty in req.items():
+                p = locked_by_id[pid]
+
                 OrderItem.objects.create(
                     order=order,
-                    product=product,
+                    product=p,
                     quantity=qty,
-                    unit_price=product.price,
+                    unit_price=p.price,
                 )
-                total += product.price * qty
-                product.stock -= qty
-                product.save()
+
+                total += p.price * qty
+                p.stock -= qty
+                touched_products.append(p)
+
+            if touched_products:
+                Product.objects.bulk_update(touched_products, ["stock"])
 
             order.total_price = total
             order.save()
 
-            # Send order confirmation email
-            try:
-                send_order_confirmation_email(order)
-            except Exception as e:
-                # Log error but don't fail the order creation
-                print(f"Failed to send order confirmation email: {e}")
+            transaction.on_commit(lambda: send_order_confirmation_email(order))
 
             serializer = OrderSerializer(order)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
