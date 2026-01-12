@@ -234,32 +234,8 @@ export async function returnOrder(orderId) {
 
 // Admin functions for order management
 export async function fetchAllOrders() {
-  if (USE_MOCK) {
-    await wait(200);
-    // Generate some mock orders with various statuses
-    const statuses = ["pending", "processing", "shipped", "delivered", "cancelled", "return_requested"];
-    const mockAllOrders = mockOrders.length > 0 
-      ? [...mockOrders]
-      : Array.from({ length: 10 }, (_, i) => ({
-          id: `MOCK-${i + 1}`,
-          status: statuses[i % statuses.length],
-          total: 100 + i * 50,
-          subtotal: 100 + i * 50,
-          shipping_fee: i % 3 === 0 ? 0 : 49.9,
-          created_at: new Date(Date.now() - i * 86400000).toISOString(),
-          user: { id: i + 1, username: `user${i + 1}`, email: `user${i + 1}@example.com` },
-          items: [
-            { name: `Product ${i + 1}`, quantity: i + 1, price: 50 + i * 10 }
-          ],
-          shipping: {
-            name: `Customer ${i + 1}`,
-            address: `${100 + i} Main St`,
-            city: "New York",
-            phone: `555-${1000 + i}`
-          }
-        }));
-    return mockAllOrders.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }
+  // Don't use mock data for admin functions - always fetch from real API
+  // This ensures Sales Managers and Product Managers see real orders
 
   try {
     const { data } = await api.get("/orders/admin/");
@@ -299,15 +275,7 @@ export async function applyDiscount(orderId, discountPercentage) {
     throw new Error("Discount must be between 0 and 90");
   }
 
-  if (USE_MOCK) {
-    await wait(100);
-    const order = mockOrders.find(o => o.id === orderId);
-    if (!order) throw new Error("Order not found");
-    if (order.status === "delivered") throw new Error("Cannot apply discount to delivered orders");
-    order.discount_percentage = discount;
-    order.discounted_total_price = order.total * (1 - discount / 100);
-    return order;
-  }
+  // Don't use mock data for discount application - always use real API
 
   try {
     const { data } = await api.post(`/orders/${orderId}/apply-discount/`, {

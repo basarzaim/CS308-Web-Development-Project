@@ -1,0 +1,347 @@
+.sm-page {
+  padding: 24px;
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.sm-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 16px;
+}
+
+.sm-breadcrumbs {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.sm-header h1 {
+  font-size: 1.6rem;
+  margin: 0;
+}
+
+.sm-muted {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.sm-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px 20px 24px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e5e7eb;
+  margin-top: 16px;
+}
+
+.sm-card-center {
+  text-align: center;
+}
+
+.sm-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.sm-card-header-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.sm-tabs {
+  display: inline-flex;
+  gap: 4px;
+  background: #eef2ff;
+  padding: 4px;
+  border-radius: 999px;
+  margin-top: 12px;
+}
+
+.sm-tab {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: #4b5563;
+}
+
+.sm-tab-active {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+}
+
+.sm-alert {
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.sm-alert-error {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.sm-alert-success {
+  background: #ecfdf3;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+}
+
+.sm-discount-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.sm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.sm-field input {
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+}
+
+.sm-primary-btn,
+.sm-secondary-btn {
+  border-radius: 999px;
+  padding: 8px 16px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sm-primary-btn {
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #ffffff;
+  box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35);
+}
+
+.sm-secondary-btn {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.sm-primary-btn:disabled,
+.sm-secondary-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  box-shadow: none;
+}
+
+.sm-validation {
+  font-size: 0.8rem;
+  color: #b91c1c;
+  margin-bottom: 4px;
+}
+
+.sm-table-wrapper {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.sm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.sm-table thead tr {
+  background: #f9fafb;
+}
+
+.sm-table th,
+.sm-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.sm-table th {
+  font-weight: 600;
+  color: #4b5563;
+  font-size: 0.8rem;
+}
+
+.sm-row-selected {
+  background: #f5f3ff;
+}
+
+.sm-product-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sm-product-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.sm-price-new {
+  color: #16a34a;
+  font-weight: 600;
+}
+
+.sm-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.sm-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.sm-summary-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+}
+
+.sm-summary-card h3 {
+  margin: 0 0 4px;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.sm-summary-value {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.sm-chart {
+  margin-top: 16px;
+}
+
+.sm-chart-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  min-height: 160px;
+  padding: 8px 4px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.sm-chart-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.sm-chart-bars {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.sm-chart-bar {
+  width: 12px;
+  border-radius: 999px 999px 0 0;
+}
+
+.sm-chart-bar-revenue {
+  background: #4f46e5;
+}
+
+.sm-chart-bar-profit {
+  background: #22c55e;
+}
+
+.sm-chart-label {
+  font-size: 0.7rem;
+  color: #6b7280;
+}
+
+.sm-chart-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.sm-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sm-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.sm-legend-dot-revenue {
+  background: #4f46e5;
+}
+
+.sm-legend-dot-profit {
+  background: #22c55e;
+}
+
+.sm-print-area {
+  /* This class is used as the main print target, but we keep
+     styling simple so the browser's Print to PDF works nicely. */
+}
+
+/* Small button variant */
+.sm-small-btn {
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  min-width: auto;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .sm-print-area,
+  .sm-print-area * {
+    visibility: visible;
+  }
+
+  .sm-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+

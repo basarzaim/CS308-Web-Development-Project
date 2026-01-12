@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./App.css";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { isAdmin } from "./utils/admin";
+import { isAdmin, isProductManager, isSalesManager } from "./utils/admin";
 import { getCartCount } from "./stores/cart";
 import { getWishlistCount } from "./stores/wishlist";
 
@@ -18,6 +18,8 @@ import CommentModeration from "./pages/CommentModeration.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
 import Wishlist from "./pages/Wishlist.jsx";
 import LiveChat from "./components/LiveChat.jsx";
+import SalesManager from "./pages/SalesManager.jsx";
+import ProductManager from "./pages/ProductManager.jsx";
 
 function Navigation() {
   const { isAuthenticated, logout, user } = useAuth();
@@ -148,8 +150,19 @@ function Navigation() {
         onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >My Orders</Link>}
-        {isAdmin(user) && <Link to="/admin/comments" style={{ 
-          color: "#fff", 
+        {isProductManager(user) && <Link to="/product-manager" style={{
+          color: "#fff",
+          fontWeight: 600,
+          textDecoration: "none",
+          transition: "all 0.2s ease",
+          padding: "4px 8px",
+          borderRadius: "6px"
+        }}
+        onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
+        onMouseLeave={(e) => e.target.style.background = "transparent"}
+        >Product Manager</Link>}
+        {isProductManager(user) && <Link to="/admin/comments" style={{
+          color: "#fff",
           fontWeight: 600,
           textDecoration: "none",
           transition: "all 0.2s ease",
@@ -159,8 +172,8 @@ function Navigation() {
         onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >Moderate Comments</Link>}
-        {isAdmin(user) && <Link to="/admin/orders" style={{ 
-          color: "#fff", 
+        {isProductManager(user) && <Link to="/admin/orders" style={{
+          color: "#fff",
           fontWeight: 600,
           textDecoration: "none",
           transition: "all 0.2s ease",
@@ -170,6 +183,23 @@ function Navigation() {
         onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >Manage Orders</Link>}
+        {isSalesManager(user) && (
+          <Link
+            to="/sales-manager"
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              textDecoration: "none",
+              transition: "all 0.2s ease",
+              padding: "4px 8px",
+              borderRadius: "6px",
+            }}
+            onMouseEnter={(e) => (e.target.style.background = "rgba(255, 255, 255, 0.2)")}
+            onMouseLeave={(e) => (e.target.style.background = "transparent")}
+          >
+            Sales Manager
+          </Link>
+        )}
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {/* Wishlist Button */}
@@ -369,6 +399,8 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/comments" element={<CommentModeration />} />
           <Route path="/admin/orders" element={<AdminOrders />} />
+          <Route path="/sales-manager" element={<SalesManager />} />
+          <Route path="/product-manager" element={<ProductManager />} />
           <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
         </Routes>
 

@@ -1,5 +1,5 @@
 // src/api/products.js
-import { apiGet } from "./client";
+import { apiGet, api } from "./client";
 
 
 function mapSortToOrdering(sort) {
@@ -72,5 +72,43 @@ export async function fetchProductById(id) {
   if (Array.isArray(data)) return data[0] ?? null;
   if (Array.isArray(data.results)) return data.results[0] ?? null;
 
+  return data;
+}
+
+// Product Management Functions
+export async function deleteProduct(productId) {
+  const numericId = Number(productId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid product ID");
+  }
+
+  const { data } = await api.delete(`/products/${numericId}/`);
+  return data;
+}
+
+export async function updateProduct(productId, updates) {
+  const numericId = Number(productId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid product ID");
+  }
+
+  const { data } = await api.patch(`/products/${numericId}/`, updates);
+  return data;
+}
+
+// Category Management Functions
+export async function createCategory(categoryData) {
+  const { data } = await api.post("/products/categories/", categoryData);
+  return data;
+}
+
+export async function deleteCategory(categoryId) {
+  // Category IDs are now numeric IDs
+  const numericId = Number(categoryId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid category ID");
+  }
+
+  const { data } = await api.delete(`/products/categories/${numericId}/`);
   return data;
 }

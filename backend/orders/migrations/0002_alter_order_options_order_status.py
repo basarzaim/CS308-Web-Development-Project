@@ -14,9 +14,21 @@ class Migration(migrations.Migration):
             name='order',
             options={'ordering': ['-created_at']},
         ),
-        migrations.AddField(
+        migrations.AlterField(
             model_name='order',
             name='status',
-            field=models.CharField(choices=[('pending', 'Pending'), ('processing', 'Processing'), ('shipped', 'Shipped'), ('delivered', 'Delivered'), ('cancelled', 'Cancelled'), ('return_requested', 'Return Requested'), ('returned', 'Returned')], default='pending', max_length=20),
+            field=models.CharField(
+                choices=[
+                    ('pending', 'Pending'),
+                    ('processing', 'Processing'),
+                    ('shipped', 'Shipped'),
+                    ('delivered', 'Delivered'),
+                    ('cancelled', 'Cancelled'),
+                    ('return_requested', 'Return Requested'),
+                    ('returned', 'Returned'),
+                ],
+                default='pending',
+                max_length=20
+            ),
         ),
     ]

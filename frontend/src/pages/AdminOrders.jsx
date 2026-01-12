@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchAllOrders, updateOrderStatus, applyDiscount } from "../api/orders";
+import { useAuth } from "../context/AuthContext";
+import { isProductManager } from "../utils/admin";
+import { fetchAllOrders, updateOrderStatus } from "../api/orders";
 import "./AdminOrders.css";
 
 const STATUS_OPTIONS = [
@@ -13,13 +15,34 @@ const STATUS_OPTIONS = [
 ];
 
 export default function AdminOrders() {
+  const { user, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return <div style={{ padding: 24 }}>Loading...</div>;
+  }
+
+  if (!isProductManager(user)) {
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{
+          color: "#dc3545",
+          backgroundColor: "#f8d7da",
+          border: "1px solid #f5c6cb",
+          borderRadius: "4px",
+          padding: "12px",
+          marginBottom: "16px"
+        }}>
+          Access denied. Product Manager role required.
+        </div>
+      </div>
+    );
+  }
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [processing, setProcessing] = useState(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
-  const [discountInputs, setDiscountInputs] = useState({});
 
   useEffect(() => {
     loadOrders();
@@ -60,29 +83,6 @@ export default function AdminOrders() {
     }
   }
 
-  async function handleApplyDiscount(orderId) {
-    const discount = discountInputs[orderId] || 0;
-    setProcessing((prev) => new Set(prev).add(orderId));
-    setError("");
-    setNotice("");
-    try {
-      const updatedOrder = await applyDiscount(orderId, discount);
-      setOrders((prev) =>
-        prev.map((order) => (order.id === orderId ? updatedOrder : order))
-      );
-      setNotice(`Discount of ${discount}% applied to Order #${orderId}`);
-      setTimeout(() => setNotice(""), 3000);
-      setDiscountInputs((prev) => ({ ...prev, [orderId]: "" }));
-    } catch (err) {
-      setError(err.message || "Failed to apply discount");
-    } finally {
-      setProcessing((prev) => {
-        const next = new Set(prev);
-        next.delete(orderId);
-        return next;
-      });
-    }
-  }
 
   const getStatusBadge = (status) => {
     const statusMap = {
@@ -250,41 +250,6 @@ export default function AdminOrders() {
                   </div>
                 </div>
 
-                {order.status !== "delivered" && (
-                  <div className="discount-panel">
-                    <h4>Sales Manager Discount</h4>
-                    <div className="discount-controls">
-                      <input
-                        type="number"
-                        min="0"
-                        max="90"
-                        step="1"
-                        placeholder="Discount %"
-                        value={discountInputs[order.id] || ""}
-                        onChange={(e) =>
-                          setDiscountInputs((prev) => ({
-                            ...prev,
-                            [order.id]: e.target.value,
-                          }))
-                        }
-                        disabled={processing.has(order.id)}
-                      />
-                      <button
-                        onClick={() => handleApplyDiscount(order.id)}
-                        disabled={
-                          processing.has(order.id) ||
-                          !discountInputs[order.id] ||
-                          Number(discountInputs[order.id]) < 0 ||
-                          Number(discountInputs[order.id]) > 90
-                        }
-                        className="apply-discount-btn"
-                      >
-                        Apply Discount
-                      </button>
-                    </div>
-                    <p className="discount-note">Discount must be between 0-90%</p>
-                  </div>
-                )}
 
                 <div className="admin-order-actions">
                   <label>

@@ -445,14 +445,26 @@ class DownloadInvoiceView(APIView):
     """
     Download PDF invoice for an order.
     Returns the PDF file directly as a download.
+    Allows order owners OR Sales Managers to download.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         from django.http import HttpResponse
 
-        # Get order for current user only
-        order = get_object_or_404(Order, pk=pk, user=request.user)
+        # Get the order
+        order = get_object_or_404(Order, pk=pk)
+
+        # Check permissions: order owner OR Sales Manager
+        user = request.user
+        is_owner = order.user == user
+        is_sales_manager = getattr(user, "role", None) == "Sales Manager" or user.is_staff
+
+        if not (is_owner or is_sales_manager):
+            return Response(
+                {"detail": "You can only download invoices for your own orders."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # Generate PDF
         pdf_buffer = generate_invoice_pdf(order)

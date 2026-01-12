@@ -2,7 +2,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from .api_views import ProductViewSet, CategoryListAPIView  
+from .api_views import ProductViewSet, CategoryListAPIView
 from .auth_views import RegisterView
 
 
@@ -12,6 +12,7 @@ router.register(r"", ProductViewSet, basename="product")
 urlpatterns = [
     # Specific paths MUST come before router.urls to avoid being caught by ViewSet
     path("categories/", CategoryListAPIView.as_view(), name="category-list"),
+    path("categories/<str:category_id>/", CategoryListAPIView.as_view(), name="category-detail"),
     # Auth endpoints
     path("auth/register/", RegisterView.as_view(), name="register"),
     path("auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
