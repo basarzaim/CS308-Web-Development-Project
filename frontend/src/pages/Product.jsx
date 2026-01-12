@@ -371,8 +371,13 @@ export default function Product() {
             <Link to="/login">Log in</Link> to rate this product.
           </p>
         )}
+        {isLoggedIn && ratingError && ratingError.includes("purchased and received") && (
+          <p className="muted" style={{ marginTop: '8px', fontStyle: 'italic' }}>
+            💡 You can only rate products you have purchased and received. Please wait until your order is delivered.
+          </p>
+        )}
         {ratingNotice && <p className="success">{ratingNotice}</p>}
-        {ratingError && <p className="error">{ratingError}</p>}
+        {ratingError && !ratingError.includes("purchased and received") && <p className="error">{ratingError}</p>}
       </section>
 
       <section className="product-card">
@@ -382,7 +387,7 @@ export default function Product() {
         </div>
         {commentsLoading ? (
           <p>Loading comments…</p>
-        ) : commentsError ? (
+        ) : commentsError && !commentsError.includes("purchased and received") ? (
           <p className="error">{commentsError}</p>
         ) : comments.length ? (
           <ul className="comment-list">
@@ -407,20 +412,27 @@ export default function Product() {
               Log in to write a comment or <Link to="/register">create an account</Link>.
             </p>
           ) : (
-            <form onSubmit={handleCommentSubmit}>
-              <textarea
-                rows={4}
-                placeholder="Share your thoughts about this product..."
-                value={commentBody}
-                onChange={(e) => setCommentBody(e.target.value)}
-              />
-              <button type="submit" className="primary-btn">
-                Submit
-              </button>
-            </form>
+            <>
+              <form onSubmit={handleCommentSubmit}>
+                <textarea
+                  rows={4}
+                  placeholder="Share your thoughts about this product..."
+                  value={commentBody}
+                  onChange={(e) => setCommentBody(e.target.value)}
+                />
+                <button type="submit" className="primary-btn">
+                  Submit
+                </button>
+              </form>
+              {commentsError && commentsError.includes("purchased and received") && (
+                <p className="muted" style={{ marginTop: '8px', fontStyle: 'italic' }}>
+                  💡 You can only comment on products you have purchased and received. Please wait until your order is delivered.
+                </p>
+              )}
+            </>
           )}
           {commentNotice && <p className="success">{commentNotice}</p>}
-          {commentsError && isLoggedIn && <p className="error">{commentsError}</p>}
+          {commentsError && isLoggedIn && !commentsError.includes("purchased and received") && <p className="error">{commentsError}</p>}
         </div>
       </section>
     </div>

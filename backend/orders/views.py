@@ -93,11 +93,13 @@ If you have any questions, contact us at support@cs308ecommerce.com
             pdf_buffer = generate_invoice_pdf(order)
 
             # Create email with attachment
+            reply_to = getattr(settings, 'EMAIL_REPLY_TO', None)
             email = EmailMessage(
                 subject=subject,
                 body=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[order.user.email],
+                reply_to=[reply_to] if reply_to else None,
             )
 
             # Attach invoice PDF
@@ -604,10 +606,13 @@ class SendInvoiceView(APIView):
         pdf_buffer = generate_invoice_pdf(order)
 
         # Email oluştur
+        reply_to = getattr(settings, 'EMAIL_REPLY_TO', None)
         email = EmailMessage(
             subject=f"Invoice for Order #{order.id}",
             body="Thank you for your purchase. Your invoice is attached.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
             to=[request.user.email],
+            reply_to=[reply_to] if reply_to else None,
         )
 
         # PDF'i maile ekle

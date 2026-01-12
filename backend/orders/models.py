@@ -91,6 +91,46 @@ class Order(models.Model):
     def discounted_total_price(self):
         discount_amount = (self.total_price * self.discount_percentage) / Decimal("100")
         return self.total_price - discount_amount
+    
+    def set_card_number(self, card_number):
+        """
+        Securely store credit card number (encrypted) and last 4 digits (plain text).
+        This method should be called when creating an order with credit card payment.
+        """
+        if not card_number:
+            self.card_number_encrypted = None
+            self.card_last_four = None
+            return
+        
+        # Remove spaces and dashes
+        card_number = str(card_number).replace(' ', '').replace('-', '')
+        
+        # Encrypt and store full card number
+        self.card_number_encrypted = encrypt_data(card_number)
+        
+        # Store last 4 digits in plain text for display purposes only
+        self.card_last_four = get_last_four_digits(card_number)
+    
+    def get_masked_card_number(self):
+        """Get masked credit card number for display (e.g., **** **** **** 1234)"""
+        if self.card_last_four:
+            return mask_credit_card(f"0000{self.card_last_four}")
+        return None
+    
+    def get_card_number(self):
+        """
+        Decrypt and return full card number.
+        WARNING: Only use this when absolutely necessary (e.g., for processing refunds).
+        Never log or expose this value.
+        """
+        if not self.card_number_encrypted:
+            return None
+        
+        try:
+            return decrypt_data(self.card_number_encrypted)
+        except Exception:
+            # If decryption fails, return None (don't expose error details)
+            return None
 
 
 class OrderItem(models.Model):

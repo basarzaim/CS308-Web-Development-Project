@@ -327,17 +327,25 @@ export default function Checkout() {
       setCartItems([]);
       setForm(INITIAL_FORM);
     } catch (err) {
-      // Check if it's a network error
-      const isNetworkError = err.message?.includes('Network Error') || 
-                            err.message?.includes('network') ||
-                            err.code === 'ERR_NETWORK' ||
-                            err.code === 'ECONNABORTED' ||
-                            !err.response;
+      // Check if it's a network error (no response at all)
+      const isNetworkError = !err.response && (
+        err.message?.includes('Network Error') || 
+        err.message?.includes('network') ||
+        err.code === 'ERR_NETWORK' ||
+        err.code === 'ECONNABORTED'
+      );
       
       if (isNetworkError) {
         setError("Network Error: Unable to connect to the server. Please check if the backend is running or try again later.");
       } else {
-        setError(err.message || "Could not create the order.");
+        // Extract error message from response
+        const errorMessage = err.response?.data?.error || 
+                            err.response?.data?.detail || 
+                            err.response?.data?.message ||
+                            (Array.isArray(err.response?.data) ? err.response.data[0] : null) ||
+                            err.message || 
+                            "Could not create the order.";
+        setError(errorMessage);
       }
     } finally {
       setPlacing(false);

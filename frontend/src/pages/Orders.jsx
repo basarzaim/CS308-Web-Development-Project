@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { fetchUserOrders, cancelOrder, returnOrder } from "../api/orders";
+import { fetchUserOrders, cancelOrder, returnOrder, downloadInvoice } from "../api/orders";
 import "./Orders.css";
 
 export default function Orders() {
@@ -103,32 +103,22 @@ export default function Orders() {
 
   const handleDownloadInvoice = async (orderId) => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) {
-        setError('Please log in to download invoices');
+      // Validate orderId is numeric (not a mock ID)
+      const numericId = Number(orderId);
+      if (!Number.isFinite(numericId) || orderId.toString().includes('MOCK')) {
+        setError('Invalid order ID. Please refresh the page and try again.');
+        setTimeout(() => setError(''), 3000);
         return;
       }
 
-      // Fetch PDF from backend
-      const response = await fetch(`http://localhost:8000/api/orders/${orderId}/download-invoice/`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to download invoice');
-      }
-
-      // Get the PDF blob
-      const blob = await response.blob();
+      // Use the API function to download invoice
+      const blob = await downloadInvoice(numericId);
 
       // Create download link
-      const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `invoice_${orderId}.pdf`;
+      a.download = `invoice_${numericId}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -138,7 +128,7 @@ export default function Orders() {
       setTimeout(() => setNotice(''), 3000);
     } catch (err) {
       console.error('Error downloading invoice:', err);
-      setError('Failed to download invoice. Please try again.');
+      setError(err.message || 'Failed to download invoice. Please try again.');
       setTimeout(() => setError(''), 3000);
     }
   };
