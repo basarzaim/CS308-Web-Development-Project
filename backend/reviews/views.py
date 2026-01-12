@@ -2,8 +2,9 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly, IsAuthenticated
 from django.shortcuts import get_object_or_404
+from django.db.models import Avg, Count
 from products.models import Product
 from .models import Comment, Rating
 from .serializers import CommentSerializer, RatingSerializer
@@ -28,18 +29,70 @@ class ProductCommentView(generics.ListCreateAPIView): #viewing comments
 
         serializer.save(customer=self.request.user, product=product)
 
-class ProductRatingView(generics.CreateAPIView):
+class ProductRatingView(generics.GenericAPIView):
+    """
+    GET: return rating summary (anyone)
+    POST: submit rating (authenticated only, one per user/product)
+    """
     serializer_class = RatingSerializer
-    permission_classes = [permissions.IsAuthenticated] # only logged in users
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def perform_create(self, serializer):
-        product_id = self.kwargs['product_id']
+    def get(self, request, *args, **kwargs):
+        product_id = self.kwargs["product_id"]
         product = get_object_or_404(Product, pk=product_id)
 
-        if Rating.objects.filter(product=product, customer=self.request.user).exists(): #checks if user already rated
-            raise ValidationError("You have already rated this product!") #validation error, change here if you want to be able to rate products again,
+        agg = Rating.objects.filter(product=product).aggregate(
+            average=Avg("score"), count=Count("id")
+        )
+        average = agg["average"] or 0
+        count = agg["count"] or 0
 
-        serializer.save(customer=self.request.user, product=product)
+        user_score = None
+        if request.user.is_authenticated:
+            user_rating = Rating.objects.filter(
+                product=product, customer=request.user
+            ).first()
+            if user_rating:
+                user_score = user_rating.score
+
+        return Response(
+            {
+                "average": round(float(average), 1) if count else 0,
+                "count": count,
+                "user_rating": user_score,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "Authentication required to submit ratings."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        product_id = self.kwargs["product_id"]
+        product = get_object_or_404(Product, pk=product_id)
+
+        if Rating.objects.filter(product=product, customer=request.user).exists():
+            raise ValidationError("You have already rated this product!")
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(customer=request.user, product=product)
+
+        # Return updated summary after creation
+        agg = Rating.objects.filter(product=product).aggregate(
+            average=Avg("score"), count=Count("id")
+        )
+        return Response(
+            {
+                "average": round(float(agg["average"]), 1),
+                "count": agg["count"],
+                "user_rating": serializer.instance.score,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # Admin moderation views

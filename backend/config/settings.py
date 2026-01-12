@@ -213,3 +213,8 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "6d7963a617fa45"
 EMAIL_HOST_PASSWORD = "64b0979d77b310"#"12345678Emir!"
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Encryption key for sensitive data (credit cards, etc.)
+# IMPORTANT: In production, set this as an environment variable (ENCRYPTION_KEY)
+# Generate a key using: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', None)  # Will generate one if not set (development only)

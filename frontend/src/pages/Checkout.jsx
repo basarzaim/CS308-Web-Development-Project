@@ -19,7 +19,12 @@ const INITIAL_FORM = {
   address: "",
   city: "",
   notes: "",
-  payment: "card",
+  payment: "credit_card",
+  card_number: "",
+  card_cvv: "",
+  card_expiry_month: "",
+  card_expiry_year: "",
+  card_holder_name: "",
 };
 
 const SHIPPING_THRESHOLD = 1000;
@@ -229,6 +234,43 @@ export default function Checkout() {
       return;
     }
 
+    // Validate credit card information if payment method is credit/debit card
+    if (form.payment === "credit_card" || form.payment === "debit_card") {
+      if (!form.card_number || form.card_number.replace(/\s/g, "").length < 13) {
+        setError("Please enter a valid credit card number (13-19 digits).");
+        return;
+      }
+      if (!form.card_cvv || form.card_cvv.length < 3) {
+        setError("Please enter a valid CVV (3-4 digits).");
+        return;
+      }
+      if (!form.card_expiry_month || !form.card_expiry_year) {
+        setError("Please enter card expiry date (month and year).");
+        return;
+      }
+      if (form.card_expiry_month.length !== 2 || parseInt(form.card_expiry_month) < 1 || parseInt(form.card_expiry_month) > 12) {
+        setError("Please enter a valid expiry month (01-12).");
+        return;
+      }
+      if (form.card_expiry_year.length !== 4) {
+        setError("Please enter a valid expiry year (YYYY).");
+        return;
+      }
+      // Check if card is expired
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      const expiryYear = parseInt(form.card_expiry_year);
+      const expiryMonth = parseInt(form.card_expiry_month);
+      if (expiryYear < currentYear || (expiryYear === currentYear && expiryMonth < currentMonth)) {
+        setError("Credit card has expired. Please use a valid card.");
+        return;
+      }
+      if (!form.card_holder_name || form.card_holder_name.trim().length < 2) {
+        setError("Please enter the cardholder name.");
+        return;
+      }
+    }
+
     setPlacing(true);
     try {
       const payload = {
@@ -256,6 +298,15 @@ export default function Checkout() {
         },
         payment: {
           method: form.payment,
+          ...(form.payment === "credit_card" || form.payment === "debit_card" ? {
+            card: {
+              number: form.card_number.replace(/\s/g, ""), // Remove spaces
+              cvv: form.card_cvv,
+              expiry_month: form.card_expiry_month,
+              expiry_year: form.card_expiry_year,
+              holder_name: form.card_holder_name,
+            }
+          } : {}),
         },
         totals,
       };
@@ -506,13 +557,122 @@ export default function Checkout() {
               />
             </label>
             <label>
-              Payment method
-              <select value={form.payment} onChange={(e) => updateForm("payment", e.target.value)}>
-                <option value="card">Credit / Debit Card</option>
-                <option value="cash">Cash on Delivery</option>
-                <option value="bank">Bank Transfer</option>
+              Payment method*
+              <select value={form.payment} onChange={(e) => updateForm("payment", e.target.value)} required>
+                <option value="credit_card">Credit Card</option>
+                <option value="debit_card">Debit Card</option>
+                <option value="bank_transfer">Bank Transfer</option>
               </select>
             </label>
+
+            {/* Credit Card Fields - Only show for credit/debit card payments */}
+            {(form.payment === "credit_card" || form.payment === "debit_card") && (
+              <>
+                <div style={{ 
+                  marginTop: "16px", 
+                  padding: "16px", 
+                  backgroundColor: "#f9fafb", 
+                  borderRadius: "8px",
+                  border: "1px solid #e5e7eb"
+                }}>
+                  <h3 style={{ fontSize: "16px", fontWeight: "600", marginBottom: "12px" }}>
+                    Card Information
+                  </h3>
+                  
+                  <label>
+                    Cardholder Name*
+                    <input
+                      type="text"
+                      value={form.card_holder_name}
+                      onChange={(e) => updateForm("card_holder_name", e.target.value)}
+                      required
+                      placeholder="Name on card"
+                      maxLength={255}
+                    />
+                  </label>
+
+                  <label>
+                    Card Number*
+                    <input
+                      type="text"
+                      value={form.card_number}
+                      onChange={(e) => {
+                        // Remove non-digits and format with spaces every 4 digits
+                        const value = e.target.value.replace(/\D/g, "");
+                        const formatted = value.match(/.{1,4}/g)?.join(" ") || value;
+                        updateForm("card_number", formatted);
+                      }}
+                      required
+                      placeholder="1234 5678 9012 3456"
+                      maxLength={19}
+                      inputMode="numeric"
+                    />
+                  </label>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                    <label>
+                      Expiry Month*
+                      <input
+                        type="text"
+                        value={form.card_expiry_month}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "").slice(0, 2);
+                          updateForm("card_expiry_month", value);
+                        }}
+                        required
+                        placeholder="MM"
+                        maxLength={2}
+                        inputMode="numeric"
+                      />
+                    </label>
+                    <label>
+                      Expiry Year*
+                      <input
+                        type="text"
+                        value={form.card_expiry_year}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          updateForm("card_expiry_year", value);
+                        }}
+                        required
+                        placeholder="YYYY"
+                        maxLength={4}
+                        inputMode="numeric"
+                      />
+                    </label>
+                  </div>
+
+                  <label>
+                    CVV*
+                    <input
+                      type="text"
+                      value={form.card_cvv}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "").slice(0, 4);
+                        updateForm("card_cvv", value);
+                      }}
+                      required
+                      placeholder="123"
+                      maxLength={4}
+                      inputMode="numeric"
+                      style={{ width: "100px" }}
+                    />
+                    <span style={{ fontSize: "0.85rem", color: "#666", marginLeft: "8px" }}>
+                      (3-4 digits on the back of your card)
+                    </span>
+                  </label>
+
+                  <p style={{ 
+                    fontSize: "0.75rem", 
+                    color: "#666", 
+                    marginTop: "8px",
+                    fontStyle: "italic"
+                  }}>
+                    🔒 Your card information is encrypted and stored securely. We never store your CVV.
+                  </p>
+                </div>
+              </>
+            )}
 
             <button type="submit" className="primary-btn" disabled={placing || !cartItems.length}>
               {placing ? "Placing order…" : "Place order"}

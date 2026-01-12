@@ -14,6 +14,10 @@ from decimal import Decimal
 from django.core.mail import EmailMessage
 from .utils import generate_invoice_pdf
 from django.conf import settings
+from .encryption import (
+    validate_credit_card_format, validate_cvv, validate_expiry_date,
+    get_last_four_digits
+)
 
 
 def send_order_confirmation_email(order):
@@ -105,9 +109,13 @@ If you have any questions, contact us at support@cs308ecommerce.com
 
             # Send email
             email.send(fail_silently=True)
-            print(f"✓ Order confirmation + invoice sent to {order.user.email}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Order confirmation + invoice sent to {order.user.email} for order {order.id}")
         except Exception as e:
-            print(f"✗ Email failed: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Email failed for order {order.id}: {str(e)}")
 
     # Send email in background thread so it doesn't block the response
     email_thread = threading.Thread(target=send_email_async)
@@ -149,14 +157,97 @@ class CheckoutView(APIView):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
+                # Get payment information
+                payment_data = request.data.get("payment", {})
+                payment_method = payment_data.get("method", "pending")
+                
+                # Validate and process credit card information if payment method is credit/debit card
+                card_number = None
+                card_cvv = None
+                card_expiry_month = None
+                card_expiry_year = None
+                card_holder_name = None
+                
+                if payment_method in ['credit_card', 'debit_card']:
+                    # Get credit card information
+                    card_data = payment_data.get("card", {})
+                    card_number = card_data.get("number", "").strip()
+                    card_cvv = card_data.get("cvv", "").strip()
+                    card_expiry_month = card_data.get("expiry_month", "").strip()
+                    card_expiry_year = card_data.get("expiry_year", "").strip()
+                    card_holder_name = card_data.get("holder_name", "").strip()
+                    
+                    # Validate credit card information
+                    if not card_number:
+                        return Response(
+                            {"error": "Credit card number is required for card payments."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate card number format (Luhn algorithm)
+                    is_valid, error_msg = validate_credit_card_format(card_number)
+                    if not is_valid:
+                        return Response(
+                            {"error": f"Invalid credit card: {error_msg}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate CVV
+                    if not card_cvv:
+                        return Response(
+                            {"error": "CVV is required for card payments."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    is_valid, error_msg = validate_cvv(card_cvv)
+                    if not is_valid:
+                        return Response(
+                            {"error": f"Invalid CVV: {error_msg}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate expiry date
+                    if not card_expiry_month or not card_expiry_year:
+                        return Response(
+                            {"error": "Card expiry date (month and year) is required."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    is_valid, error_msg = validate_expiry_date(card_expiry_month, card_expiry_year)
+                    if not is_valid:
+                        return Response(
+                            {"error": f"Invalid expiry date: {error_msg}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate cardholder name
+                    if not card_holder_name:
+                        return Response(
+                            {"error": "Cardholder name is required."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
                 order = Order.objects.create(
                     user=user,
                     total_price=0,
+                    payment_method=payment_method,
                     shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
                     shipping_address=shipping_data.get('address', ''),
                     shipping_city=shipping_data.get('city', ''),
                     shipping_phone=shipping_data.get('phone', '')
                 )
+                
+                # Store credit card information securely if provided
+                if payment_method in ['credit_card', 'debit_card'] and card_number:
+                    order.set_card_number(card_number)
+                    order.card_expiry_month = card_expiry_month
+                    order.card_expiry_year = card_expiry_year
+                    order.card_holder_name = card_holder_name
+                    # CVV is NOT stored (PCI DSS compliance)
+                    order.is_paid = True  # Mark as paid when card info is provided
+                    order.paid_at = timezone.now()
+                    order.save()
+                
                 total = Decimal("0")
 
                 for item in cart_items:
@@ -183,7 +274,10 @@ class CheckoutView(APIView):
                     send_order_confirmation_email(order)
                 except Exception as e:
                     # Log error but don't fail the order creation
-                    print(f"Failed to send order confirmation email: {e}")
+                    # IMPORTANT: Never log credit card data - only log error message
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to send order confirmation email for order {order.id}: {str(e)}")
 
                 serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -207,14 +301,98 @@ class CheckoutView(APIView):
             if not normalized:
                 return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Get payment information
+            payment_data = request.data.get("payment", {})
+            payment_method = payment_data.get("method", "pending")
+            
+            # Validate and process credit card information if payment method is credit/debit card
+            card_number = None
+            card_cvv = None
+            card_expiry_month = None
+            card_expiry_year = None
+            card_holder_name = None
+            
+            if payment_method in ['credit_card', 'debit_card']:
+                # Get credit card information
+                card_data = payment_data.get("card", {})
+                card_number = card_data.get("number", "").strip()
+                card_cvv = card_data.get("cvv", "").strip()
+                card_expiry_month = card_data.get("expiry_month", "").strip()
+                card_expiry_year = card_data.get("expiry_year", "").strip()
+                card_holder_name = card_data.get("holder_name", "").strip()
+                
+                # Validate credit card information
+                if not card_number:
+                    return Response(
+                        {"error": "Credit card number is required for card payments."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate card number format (Luhn algorithm)
+                is_valid, error_msg = validate_credit_card_format(card_number)
+                if not is_valid:
+                    return Response(
+                        {"error": f"Invalid credit card: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate CVV
+                if not card_cvv:
+                    return Response(
+                        {"error": "CVV is required for card payments."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                is_valid, error_msg = validate_cvv(card_cvv)
+                if not is_valid:
+                    return Response(
+                        {"error": f"Invalid CVV: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate expiry date
+                if not card_expiry_month or not card_expiry_year:
+                    return Response(
+                        {"error": "Card expiry date (month and year) is required."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                is_valid, error_msg = validate_expiry_date(card_expiry_month, card_expiry_year)
+                if not is_valid:
+                    return Response(
+                        {"error": f"Invalid expiry date: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate cardholder name
+                if not card_holder_name:
+                    return Response(
+                        {"error": "Cardholder name is required."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Create order
             order = Order.objects.create(
                 user=user,
                 total_price=0,
+                payment_method=payment_method,
                 shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
                 shipping_address=shipping_data.get('address', ''),
                 shipping_city=shipping_data.get('city', ''),
                 shipping_phone=shipping_data.get('phone', '')
             )
+            
+            # Store credit card information securely if provided
+            if payment_method in ['credit_card', 'debit_card'] and card_number:
+                order.set_card_number(card_number)
+                order.card_expiry_month = card_expiry_month
+                order.card_expiry_year = card_expiry_year
+                order.card_holder_name = card_holder_name
+                # CVV is NOT stored (PCI DSS compliance)
+                order.is_paid = True  # Mark as paid when card info is provided
+                order.paid_at = timezone.now()
+                order.save()
+            
             total = Decimal("0")
 
             for product, qty in normalized:
@@ -236,7 +414,10 @@ class CheckoutView(APIView):
                 send_order_confirmation_email(order)
             except Exception as e:
                 # Log error but don't fail the order creation
-                print(f"Failed to send order confirmation email: {e}")
+                # IMPORTANT: Never log credit card data - only log error message
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send order confirmation email for order {order.id}: {str(e)}")
 
             serializer = OrderSerializer(order)
             return Response(serializer.data, status=status.HTTP_201_CREATED)

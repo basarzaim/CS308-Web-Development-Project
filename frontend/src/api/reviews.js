@@ -1,7 +1,4 @@
-import { api, USE_MOCK, wait } from "./client";
-
-const mockComments = new Map();
-const mockRatings = new Map();
+import { api } from "./client";
 
 function asNumber(id) {
   const numericId = Number(id);
@@ -26,12 +23,6 @@ function extractMessage(error, fallback = "Operation failed") {
 
 export async function fetchProductComments(productId) {
   const numericId = asNumber(productId);
-  if (USE_MOCK) {
-    await wait(60);
-    return [...ensureMockList(mockComments, numericId)]
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }
-
   try {
     const { data } = await api.get(`/products/${numericId}/comments/`);
     if (Array.isArray(data)) return data;
@@ -46,20 +37,6 @@ export async function createProductComment(productId, body) {
   const numericId = asNumber(productId);
   if (!body?.trim()) throw new Error("Comment text cannot be empty");
 
-  if (USE_MOCK) {
-    await wait(80);
-    const entry = {
-      id: crypto.randomUUID?.() ?? Date.now(),
-      product: numericId,
-      author: "guest",
-      body,
-      status: "pending",
-      created_at: new Date().toISOString(),
-    };
-    ensureMockList(mockComments, numericId).push(entry);
-    return entry;
-  }
-
   try {
     const { data } = await api.post(`/products/${numericId}/comments/`, { body });
     return data;
@@ -68,40 +45,25 @@ export async function createProductComment(productId, body) {
   }
 }
 
-function buildMockRatingSummary(productId) {
-  const list = ensureMockList(mockRatings, productId);
-  if (!list.length) return { count: 0, average: 0 };
-  const sum = list.reduce((acc, item) => acc + item.score, 0);
-  return {
-    count: list.length,
-    average: Math.round((sum / list.length) * 10) / 10,
-  };
-}
-
 export async function fetchRatingSummary(productId) {
   const numericId = asNumber(productId);
-  if (USE_MOCK) {
-    await wait(40);
-    return buildMockRatingSummary(numericId);
+
+  try {
+    const { data } = await api.get(`/products/${numericId}/ratings/`);
+    // Expect shape: { average, count, user_rating }
+    return {
+      average: Number(data?.average ?? 0),
+      count: Number(data?.count ?? 0),
+      user_rating: data?.user_rating ?? null,
+    };
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to load rating summary"));
   }
-  // Backend currently exposes only POST, so return null for now.
-  return null;
 }
 
 export async function submitProductRating(productId, score) {
   const numericId = asNumber(productId);
   const clamped = Math.min(5, Math.max(1, Number(score)));
-
-  if (USE_MOCK) {
-    await wait(50);
-    ensureMockList(mockRatings, numericId).push({
-      id: crypto.randomUUID?.() ?? Date.now(),
-      product: numericId,
-      score: clamped,
-      created_at: new Date().toISOString(),
-    });
-    return buildMockRatingSummary(numericId);
-  }
 
   try {
     const { data } = await api.post(`/products/${numericId}/ratings/`, { score: clamped });
