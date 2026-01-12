@@ -145,6 +145,7 @@ export default function Product() {
   }
 
   function handleQuantityChange(newQty) {
+    if (!product) return;
     const stock = product.stock || 0;
     const qty = Math.max(1, Math.min(newQty, stock));
     setQuantity(qty);
@@ -233,11 +234,11 @@ export default function Product() {
                 <span style={{ color: '#111827' }}>{product.distributor}</span>
               </div>
             )}
-            {product.category && (
+            {product.category_name && (
               <div style={{ display: 'flex', alignItems: 'center' }}>
                 <span style={{ fontWeight: '500', color: '#6b7280', minWidth: '120px' }}>Category:</span>
                 <span style={{ color: '#111827', textTransform: 'capitalize' }}>
-                  {product.category.replace('_', ' ')}
+                  {product.category_name}
                 </span>
               </div>
             )}

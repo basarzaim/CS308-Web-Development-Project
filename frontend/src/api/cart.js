@@ -1,5 +1,5 @@
 // src/api/cart.js
-import { api, USE_MOCK, wait } from "./client";
+import { api } from "./client";
 
 function extractMessage(error, fallback = "Cart operation failed") {
   return (
@@ -11,11 +11,6 @@ function extractMessage(error, fallback = "Cart operation failed") {
 }
 
 export async function fetchCart() {
-  if (USE_MOCK) {
-    await wait(100);
-    return [];
-  }
-
   try {
     const { data } = await api.get("/cart/");
     return Array.isArray(data?.cart) ? data.cart : [];
@@ -30,11 +25,6 @@ export async function addToCart(productId, quantity = 1) {
   
   if (!Number.isFinite(numericId)) {
     throw new Error("Invalid product ID");
-  }
-
-  if (USE_MOCK) {
-    await wait(100);
-    return { message: "added to cart" };
   }
 
   try {
@@ -56,11 +46,6 @@ export async function updateCartItem(itemId, quantity) {
     throw new Error("Invalid cart item ID");
   }
 
-  if (USE_MOCK) {
-    await wait(100);
-    return { id: numericId, quantity: qty };
-  }
-
   try {
     const { data } = await api.patch(`/cart/${numericId}/`, {
       quantity: qty,
@@ -78,11 +63,6 @@ export async function removeCartItem(itemId) {
     throw new Error("Invalid cart item ID");
   }
 
-  if (USE_MOCK) {
-    await wait(100);
-    return {};
-  }
-
   try {
     await api.delete(`/cart/${numericId}/remove/`);
     return {};
@@ -98,11 +78,6 @@ export async function removeCartItemByProduct(productId) {
     throw new Error("Invalid product ID");
   }
 
-  if (USE_MOCK) {
-    await wait(100);
-    return {};
-  }
-
   try {
     await api.delete(`/cart/product/${numericId}/remove/`);
     return {};
@@ -112,11 +87,6 @@ export async function removeCartItemByProduct(productId) {
 }
 
 export async function clearCart() {
-  if (USE_MOCK) {
-    await wait(100);
-    return {};
-  }
-
   try {
     await api.delete("/cart/clear/");
     return {};
@@ -126,11 +96,6 @@ export async function clearCart() {
 }
 
 export async function mergeGuestCart() {
-  if (USE_MOCK) {
-    await wait(100);
-    return { merged_items: 0 };
-  }
-
   try {
     const { data } = await api.post("/cart/merge/");
     return data;
