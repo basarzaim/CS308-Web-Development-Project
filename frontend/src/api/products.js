@@ -76,6 +76,20 @@ export async function fetchProductById(id) {
 }
 
 // Product Management Functions
+export async function createProduct(productData) {
+  try {
+    const { data } = await api.post("/products/", productData);
+    return data;
+  } catch (error) {
+    const errorMessage = error?.response?.data?.detail || 
+                        error?.response?.data?.message || 
+                        (Array.isArray(error?.response?.data) ? error.response.data[0] : null) ||
+                        error?.message || 
+                        "Failed to create product";
+    throw new Error(errorMessage);
+  }
+}
+
 export async function deleteProduct(productId) {
   const numericId = Number(productId);
   if (!Number.isFinite(numericId)) {
@@ -98,8 +112,18 @@ export async function updateProduct(productId, updates) {
 
 // Category Management Functions
 export async function createCategory(categoryData) {
-  const { data } = await api.post("/products/categories/", categoryData);
-  return data;
+  try {
+    const { data } = await api.post("/products/categories/", categoryData);
+    return data;
+  } catch (error) {
+    // Extract error message from response
+    const errorMessage = error?.response?.data?.detail || 
+                        error?.response?.data?.message || 
+                        (Array.isArray(error?.response?.data) ? error.response.data[0] : null) ||
+                        error?.message || 
+                        "Failed to create category";
+    throw new Error(errorMessage);
+  }
 }
 
 export async function deleteCategory(categoryId) {
@@ -109,6 +133,16 @@ export async function deleteCategory(categoryId) {
     throw new Error("Invalid category ID");
   }
 
-  const { data } = await api.delete(`/products/categories/${numericId}/`);
-  return data;
+  try {
+    const { data } = await api.delete(`/products/categories/${numericId}/`);
+    return data;
+  } catch (error) {
+    // Extract error message from response
+    const errorMessage = error?.response?.data?.detail || 
+                        error?.response?.data?.message || 
+                        (Array.isArray(error?.response?.data) ? error.response.data[0] : null) ||
+                        error?.message || 
+                        "Failed to delete category";
+    throw new Error(errorMessage);
+  }
 }

@@ -18,7 +18,8 @@ export default function Profile() {
     first_name: "",
     last_name: "",
     phone: "",
-    address: "",
+    taxID: "",
+    home_address: "",
   });
 
   // Profil bilgisini backend'den çek
@@ -42,7 +43,8 @@ export default function Profile() {
           first_name: data.first_name || "",
           last_name: data.last_name || "",
           phone: data.phone || "",
-          address: data.address || "",
+          taxID: data.taxID || "",
+          home_address: data.home_address || "",
         });
 
         // Context'teki user bilgisini de güncelle
@@ -109,7 +111,8 @@ export default function Profile() {
         first_name: user.first_name || "",
         last_name: user.last_name || "",
         phone: user.phone || "",
-        address: user.address || "",
+        taxID: user.taxID || "",
+        home_address: user.home_address || "",
       });
     }
     setEditing(false);
@@ -211,12 +214,23 @@ export default function Profile() {
                 </label>
 
                 <label>
-                  Address
-                  <textarea
-                    name="address"
-                    value={formData.address}
+                  Tax ID
+                  <input
+                    type="text"
+                    name="taxID"
+                    value={formData.taxID}
                     onChange={handleChange}
-                    placeholder="Enter your address"
+                    placeholder="Enter your tax identification number"
+                  />
+                </label>
+
+                <label>
+                  Home Address
+                  <textarea
+                    name="home_address"
+                    value={formData.home_address}
+                    onChange={handleChange}
+                    placeholder="Enter your home address"
                     rows="3"
                   />
                 </label>
@@ -260,9 +274,15 @@ export default function Profile() {
                   </span>
                 </div>
                 <div className="info-row">
-                  <span className="info-label">Address:</span>
+                  <span className="info-label">Tax ID:</span>
                   <span className="info-value">
-                    {user?.address || "Not set"}
+                    {user?.taxID || "Not set"}
+                  </span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Home Address:</span>
+                  <span className="info-value">
+                    {user?.home_address || "Not set"}
                   </span>
                 </div>
               </div>

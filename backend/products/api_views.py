@@ -104,7 +104,38 @@ class ProductViewSet(viewsets.ModelViewSet):
                 {"detail": "Only Product Manager or Sales Manager can update products."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return super().update(request, *args, **kwargs)
+        
+        # Get the instance before update to check if price changed
+        instance = self.get_object()
+        old_price = instance.price
+        
+        # Perform the update
+        response = super().update(request, *args, **kwargs)
+        
+        # After update, check if price changed and update wishlist items
+        instance.refresh_from_db()
+        if 'price' in request.data and instance.price != old_price:
+            # Price was changed directly (not via discount)
+            # Only update price_when_added if the new price is HIGHER than current price_when_added
+            # This ensures that:
+            # - If price increases, that becomes the new baseline for discount detection
+            # - If price decreases, we keep the original baseline so discounts can still be detected
+            from wishlist.models import Wishlist
+            from decimal import Decimal
+            
+            wishlist_items = Wishlist.objects.filter(product=instance)
+            for item in wishlist_items:
+                if item.price_when_added is None:
+                    # No baseline set, use new price
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                elif Decimal(str(instance.price)) > Decimal(str(item.price_when_added)):
+                    # New price is higher, update baseline
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                # If new price is lower, keep original price_when_added for discount detection
+        
+        return response
 
     def partial_update(self, request, *args, **kwargs):
         if not self.check_sales_or_product_manager_permission():
@@ -112,7 +143,38 @@ class ProductViewSet(viewsets.ModelViewSet):
                 {"detail": "Only Product Manager or Sales Manager can update products."},
                 status=status.HTTP_403_FORBIDDEN
             )
-        return super().partial_update(request, *args, **kwargs)
+        
+        # Get the instance before update to check if price changed
+        instance = self.get_object()
+        old_price = instance.price
+        
+        # Perform the update
+        response = super().partial_update(request, *args, **kwargs)
+        
+        # After update, check if price changed and update wishlist items
+        instance.refresh_from_db()
+        if 'price' in request.data and instance.price != old_price:
+            # Price was changed directly (not via discount)
+            # Only update price_when_added if the new price is HIGHER than current price_when_added
+            # This ensures that:
+            # - If price increases, that becomes the new baseline for discount detection
+            # - If price decreases, we keep the original baseline so discounts can still be detected
+            from wishlist.models import Wishlist
+            from decimal import Decimal
+            
+            wishlist_items = Wishlist.objects.filter(product=instance)
+            for item in wishlist_items:
+                if item.price_when_added is None:
+                    # No baseline set, use new price
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                elif Decimal(str(instance.price)) > Decimal(str(item.price_when_added)):
+                    # New price is higher, update baseline
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                # If new price is lower, keep original price_when_added for discount detection
+        
+        return response
 
     def destroy(self, request, *args, **kwargs):
         if not self.check_product_manager_permission():

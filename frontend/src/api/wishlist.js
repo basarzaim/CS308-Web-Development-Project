@@ -1,7 +1,5 @@
 // src/api/wishlist.js
-import { api, USE_MOCK, wait } from "./client";
-
-const mockWishlist = [];
+import { api } from "./client";
 
 function extractMessage(error, fallback = "Wishlist operation failed") {
   return (
@@ -13,11 +11,6 @@ function extractMessage(error, fallback = "Wishlist operation failed") {
 }
 
 export async function fetchWishlist() {
-  if (USE_MOCK) {
-    await wait(100);
-    return mockWishlist;
-  }
-
   try {
     const { data } = await api.get("/wishlist/");
     // Backend returns array of wishlist items with product info
@@ -31,22 +24,6 @@ export async function addToWishlist(productId) {
   const numericId = Number(productId);
   if (!Number.isFinite(numericId)) {
     throw new Error("Invalid product ID");
-  }
-
-  if (USE_MOCK) {
-    await wait(100);
-    if (mockWishlist.find((item) => item.product === numericId)) {
-      throw new Error("Product already in wishlist");
-    }
-    const item = {
-      id: Date.now(),
-      product: numericId,
-      product_name: `Product ${numericId}`,
-      product_price: "99.99",
-      created_at: new Date().toISOString(),
-    };
-    mockWishlist.push(item);
-    return item;
   }
 
   try {
@@ -67,16 +44,6 @@ export async function removeFromWishlist(wishlistItemId) {
     throw new Error("Invalid wishlist item ID");
   }
 
-  if (USE_MOCK) {
-    await wait(100);
-    const index = mockWishlist.findIndex((item) => item.id === numericId);
-    if (index === -1) {
-      throw new Error("Wishlist item not found");
-    }
-    mockWishlist.splice(index, 1);
-    return {};
-  }
-
   try {
     await api.delete(`/wishlist/${numericId}/`);
     return {};
@@ -90,16 +57,6 @@ export async function removeFromWishlistByProduct(productId) {
   const numericProductId = Number(productId);
   if (!Number.isFinite(numericProductId)) {
     throw new Error("Invalid product ID");
-  }
-
-  if (USE_MOCK) {
-    await wait(100);
-    const index = mockWishlist.findIndex((item) => item.product === numericProductId);
-    if (index === -1) {
-      throw new Error("Product not in wishlist");
-    }
-    mockWishlist.splice(index, 1);
-    return {};
   }
 
   try {

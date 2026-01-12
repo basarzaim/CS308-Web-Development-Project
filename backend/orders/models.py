@@ -42,6 +42,12 @@ class Order(models.Model):
         default=0
     )
 
+    shipping_fee = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Shipping fee for this order"
+    )
 
     discount_percentage = models.DecimalField(
         max_digits=5,
@@ -90,8 +96,15 @@ class Order(models.Model):
 
     
     def discounted_total_price(self):
-        discount_amount = (self.total_price * self.discount_percentage) / Decimal("100")
-        return self.total_price - discount_amount
+        """
+        Calculate total price after discount.
+        Note: Discount applies only to product subtotal, not shipping fee.
+        """
+        # Subtotal is total_price - shipping_fee (products only)
+        subtotal = self.total_price - self.shipping_fee
+        discount_amount = (subtotal * self.discount_percentage) / Decimal("100")
+        # Final total = discounted subtotal + shipping fee
+        return subtotal - discount_amount + self.shipping_fee
     
     def set_card_number(self, card_number):
         """

@@ -200,6 +200,17 @@ export default function SalesManager() {
         <button
           type="button"
           className={
+            activeTab === "prices"
+              ? "sm-tab sm-tab-active"
+              : "sm-tab"
+          }
+          onClick={() => setActiveTab("prices")}
+        >
+          Price Management
+        </button>
+        <button
+          type="button"
+          className={
             activeTab === "invoices"
               ? "sm-tab sm-tab-active"
               : "sm-tab"
@@ -233,6 +244,8 @@ export default function SalesManager() {
       </div>
 
       {activeTab === "discounts" && <DiscountManagement />}
+
+      {activeTab === "prices" && <PriceManagement />}
 
       {activeTab === "invoices" && (
         <InvoicesSection
@@ -540,6 +553,240 @@ function DiscountManagement() {
     </section>
   );
 }
+
+function PriceManagement() {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [newPrice, setNewPrice] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadProducts() {
+      setLoading(true);
+      setError("");
+      try {
+        const { items } = await fetchProducts({
+          page: 1,
+          limit: 200,
+          sort: "",
+        });
+        if (!ignore) {
+          setProducts(Array.isArray(items) ? items : []);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.message || "Failed to load products");
+          setProducts([]);
+        }
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+
+    loadProducts();
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const allSelected =
+    products.length > 0 && selectedIds.size === products.length;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map((p) => p.id)));
+    }
+  };
+
+  const toggleProduct = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const numericPrice = Number(newPrice);
+  const isPriceValid =
+    !Number.isNaN(numericPrice) &&
+    numericPrice > 0;
+
+  async function handleUpdatePrices() {
+    if (!isPriceValid || selectedIds.size === 0) {
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const { api } = await import("../api/client");
+      const ids = Array.from(selectedIds);
+
+      await Promise.all(
+        ids.map(async (id) => {
+          await api.patch(`/products/${id}/`, {
+            price: numericPrice,
+          });
+        })
+      );
+
+      setNotice(
+        `Price set to $${numericPrice.toFixed(2)} for ${selectedIds.size} product(s).`
+      );
+      setTimeout(() => setNotice(""), 4000);
+
+      // Refresh list with updated prices
+      const { items } = await fetchProducts({
+        page: 1,
+        limit: 200,
+        sort: "",
+      });
+      setProducts(Array.isArray(items) ? items : []);
+
+      // Clear selection and price input
+      setSelectedIds(new Set());
+      setNewPrice("");
+    } catch (err) {
+      setError(
+        err.message ||
+          "Failed to update prices. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <section className="sm-card">
+      <header className="sm-card-header">
+        <div>
+          <h2>Price Management</h2>
+          <p className="sm-muted">
+            Select products and set their absolute prices. This will update the product prices directly.
+            Users who have these products in their wishlist will be notified if prices decrease.
+          </p>
+        </div>
+      </header>
+
+      {error && <div className="sm-alert sm-alert-error">{error}</div>}
+      {notice && (
+        <div className="sm-alert sm-alert-success">{notice}</div>
+      )}
+
+      <div className="sm-discount-controls">
+        <label className="sm-field">
+          <span>New Price ($)</span>
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={newPrice}
+            onChange={(e) => setNewPrice(e.target.value)}
+            placeholder="e.g. 99.99"
+          />
+        </label>
+        <button
+          type="button"
+          className="sm-primary-btn"
+          onClick={handleUpdatePrices}
+          disabled={
+            saving ||
+            !isPriceValid ||
+            selectedIds.size === 0
+          }
+        >
+          {saving ? "Updating…" : "Update Prices"}
+        </button>
+      </div>
+      {!isPriceValid && newPrice !== "" && (
+        <p className="sm-validation">
+          Please enter a valid price greater than 0.
+        </p>
+      )}
+
+      {loading ? (
+        <p>Loading products…</p>
+      ) : products.length === 0 ? (
+        <p className="sm-muted">
+          No products found. Once products are available, you can
+          manage prices here.
+        </p>
+      ) : (
+        <div className="sm-table-wrapper">
+          <table className="sm-table">
+            <thead>
+              <tr>
+                <th>
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleSelectAll}
+                  />
+                </th>
+                <th>Product</th>
+                <th>Category</th>
+                <th>Current price</th>
+                <th>New price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((p) => {
+                const price = Number(p.price ?? 0);
+                const selected = selectedIds.has(p.id);
+                return (
+                  <tr key={p.id} className={selected ? "sm-row-selected" : ""}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleProduct(p.id)}
+                      />
+                    </td>
+                    <td>
+                      <div className="sm-product-cell">
+                        {p.image && (
+                          <img
+                            src={p.image}
+                            alt={p.name}
+                            className="sm-product-thumb"
+                          />
+                        )}
+                        <span>{p.name}</span>
+                      </div>
+                    </td>
+                    <td>{p.category_name || p.category || "—"}</td>
+                    <td>${price.toFixed(2)}</td>
+                    <td>
+                      {selected && isPriceValid ? (
+                        <span className="sm-price-new">
+                          ${numericPrice.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="sm-muted">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function InvoicesSection({
   orders,
   loading,
