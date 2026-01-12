@@ -3,6 +3,8 @@ from .views import (
     CheckoutView,
     OrderCancelView,
     OrderReturnView,
+    ApproveReturnView,
+    DenyReturnView,
     ApplyDiscountView,
     OrderListView,
     OrderDetailView,
@@ -30,6 +32,10 @@ urlpatterns = [
     # Legacy admin status update path (kept for compatibility)
     path("admin/update-status/<int:order_id>/", admin_update_order_status),
     path("<int:pk>/send-invoice/", SendInvoiceView.as_view(), name="send-invoice"),
+    
+    # Sales Manager return management endpoints
+    path("<int:pk>/approve-return/", ApproveReturnView.as_view(), name="approve-return"),
+    path("<int:pk>/deny-return/", DenyReturnView.as_view(), name="deny-return"),
 
 
 ]

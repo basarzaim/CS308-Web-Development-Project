@@ -2,6 +2,7 @@ from django.db import models
 from django.conf import settings
 from products.models import Product
 from decimal import Decimal
+from django.utils import timezone
 from .encryption import encrypt_data, decrypt_data, get_last_four_digits, mask_credit_card
 
 
@@ -131,6 +132,29 @@ class Order(models.Model):
         except Exception:
             # If decryption fails, return None (don't expose error details)
             return None
+    
+    def save(self, *args, **kwargs):
+        """
+        Override save to automatically set delivered_at when status changes to 'delivered'.
+        """
+        # Check if status is being changed to 'delivered' and delivered_at is not set
+        if self.status == 'delivered' and not self.delivered_at:
+            # Only set if this is an existing order (has pk) or if we're explicitly setting it
+            if self.pk:
+                # Check the old status from database
+                try:
+                    old_order = type(self).objects.get(pk=self.pk)
+                    if old_order.status != 'delivered':
+                        # Status is changing to 'delivered', set delivered_at
+                        self.delivered_at = timezone.now()
+                except type(self).DoesNotExist:
+                    # New order being created with 'delivered' status (unusual but handle it)
+                    self.delivered_at = timezone.now()
+            else:
+                # New order with 'delivered' status (unusual but handle it)
+                self.delivered_at = timezone.now()
+        
+        super().save(*args, **kwargs)
 
 
 class OrderItem(models.Model):

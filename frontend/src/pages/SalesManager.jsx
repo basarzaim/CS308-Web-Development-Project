@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { isSalesManager } from "../utils/admin";
 import { fetchProducts } from "../api/products";
-import { fetchAllOrders } from "../api/orders";
+import { fetchAllOrders, approveReturn, denyReturn } from "../api/orders";
 import "./SalesManager.css";
 
 // Helper to parse an ISO or date-like string into a Date, or null
@@ -219,6 +219,17 @@ export default function SalesManager() {
         >
           Revenue &amp; Profit
         </button>
+        <button
+          type="button"
+          className={
+            activeTab === "returns"
+              ? "sm-tab sm-tab-active"
+              : "sm-tab"
+          }
+          onClick={() => setActiveTab("returns")}
+        >
+          Return Requests
+        </button>
       </div>
 
       {activeTab === "discounts" && <DiscountManagement />}
@@ -247,6 +258,15 @@ export default function SalesManager() {
           onToDateChange={setToDate}
           summary={revenueSummary}
           chartData={chartData}
+        />
+      )}
+
+      {activeTab === "returns" && (
+        <ReturnRequestsSection
+          orders={filteredOrders}
+          loading={ordersLoading}
+          error={ordersError}
+          onReload={loadOrders}
         />
       )}
     </div>
@@ -520,7 +540,6 @@ function DiscountManagement() {
     </section>
   );
 }
-
 function InvoicesSection({
   orders,
   loading,
@@ -683,7 +702,6 @@ function InvoicesSection({
     </section>
   );
 }
-
 function RevenueSection({
   loading,
   error,
@@ -813,4 +831,146 @@ function RevenueSection({
   );
 }
 
+function ReturnRequestsSection({ orders, loading, error, onReload }) {
+  const [processing, setProcessing] = useState(new Set());
+  const [notice, setNotice] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Filter orders with return_requested status
+  const returnRequests = orders.filter(
+    (order) => order.status === "return_requested"
+  );
+
+  async function handleApproveReturn(orderId) {
+    setProcessing((prev) => new Set(prev).add(orderId));
+    setErrorMsg("");
+    setNotice("");
+    try {
+      await approveReturn(orderId);
+      setNotice("Return request approved successfully. Products have been restocked.");
+      onReload();
+    } catch (err) {
+      setErrorMsg(err.message || "Failed to approve return");
+    } finally {
+      setProcessing((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }
+  }
+
+  async function handleDenyReturn(orderId) {
+    setProcessing((prev) => new Set(prev).add(orderId));
+    setErrorMsg("");
+    setNotice("");
+    try {
+      await denyReturn(orderId);
+      setNotice("Return request denied. Order status reverted to 'Delivered'.");
+      onReload();
+    } catch (err) {
+      setErrorMsg(err.message || "Failed to deny return");
+    } finally {
+      setProcessing((prev) => {
+        const next = new Set(prev);
+        next.delete(orderId);
+        return next;
+      });
+    }
+  }
+
+  return (
+    <div className="sm-card">
+      <header className="sm-section-header">
+        <div>
+          <h2>Return Requests</h2>
+          <p className="sm-muted">
+            Review and manage customer return requests. Approve to restock products or deny to keep the order as delivered.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="sm-secondary-btn"
+          onClick={onReload}
+          disabled={loading}
+        >
+          Refresh
+        </button>
+      </header>
+
+      {error && <div className="sm-alert sm-alert-error">{error}</div>}
+      {errorMsg && <div className="sm-alert sm-alert-error">{errorMsg}</div>}
+      {notice && <div className="sm-alert sm-alert-success">{notice}</div>}
+
+      {loading ? (
+        <p>Loading return requests…</p>
+      ) : !returnRequests.length ? (
+        <p className="sm-muted">No return requests pending.</p>
+      ) : (
+        <div className="sm-table-wrapper">
+          <table className="sm-table">
+            <thead>
+              <tr>
+                <th>Order ID</th>
+                <th>Customer</th>
+                <th>Items</th>
+                <th>Total</th>
+                <th>Requested Date</th>
+                <th>Delivered Date</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {returnRequests.map((order) => {
+                const isProcessing = processing.has(order.id);
+                return (
+                  <tr key={order.id}>
+                    <td>#{order.id}</td>
+                    <td>{order.user?.email || order.user?.username || "N/A"}</td>
+                    <td>
+                      {order.items?.length || 0} item(s)
+                    </td>
+                    <td>${Number(order.discounted_total_price || order.total_price || 0).toFixed(2)}</td>
+                    <td>
+                      {order.updated_at
+                        ? new Date(order.updated_at).toLocaleDateString()
+                        : "N/A"}
+                    </td>
+                    <td>
+                      {order.delivered_at
+                        ? new Date(order.delivered_at).toLocaleDateString()
+                        : "N/A"}
+                    </td>
+                    <td>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          className="sm-primary-btn"
+                          onClick={() => handleApproveReturn(order.id)}
+                          disabled={isProcessing}
+                          style={{ backgroundColor: "#28a745" }}
+                        >
+                          {isProcessing ? "Processing..." : "Approve"}
+                        </button>
+                        <button
+                          type="button"
+                          className="sm-secondary-btn"
+                          onClick={() => handleDenyReturn(order.id)}
+                          disabled={isProcessing}
+                          style={{ backgroundColor: "#dc3545", color: "white" }}
+                        >
+                          {isProcessing ? "Processing..." : "Deny"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
 

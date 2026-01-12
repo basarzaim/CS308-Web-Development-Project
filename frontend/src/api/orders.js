@@ -111,16 +111,12 @@ export async function cancelOrder(orderId) {
 export async function returnOrder(orderId) {
   try {
     const { data } = await api.post(`/orders/${orderId}/return/`);
+    // Backend returns { message, order } - use the order object
+    const updatedOrder = data.order || data;
     // Update local storage
-    updateStoredOrder(orderId, { status: data.status || 'return_requested' });
-    return data;
+    updateStoredOrder(orderId, { status: updatedOrder.status || 'return_requested' });
+    return updatedOrder;
   } catch (error) {
-    // If API fails, try updating local storage
-    const updated = updateStoredOrder(orderId, { status: 'return_requested' });
-    if (updated) {
-      console.warn("Updated order status locally, backend update failed");
-      return updated;
-    }
     throw new Error(extractMessage(error, "Unable to request return"));
   }
 }
@@ -190,5 +186,36 @@ export async function downloadInvoice(orderId) {
       throw new Error("You do not have permission to download this invoice");
     }
     throw new Error(extractMessage(error, "Failed to download invoice"));
+  }
+}
+
+// Sales Manager functions for return management
+export async function approveReturn(orderId) {
+  const numericId = Number(orderId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid order ID");
+  }
+
+  try {
+    const { data } = await api.post(`/orders/${numericId}/approve-return/`);
+    // Backend returns { message, order } - return the order object
+    return data.order || data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to approve return"));
+  }
+}
+
+export async function denyReturn(orderId) {
+  const numericId = Number(orderId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid order ID");
+  }
+
+  try {
+    const { data } = await api.post(`/orders/${numericId}/deny-return/`);
+    // Backend returns { message, order } - return the order object
+    return data.order || data;
+  } catch (error) {
+    throw new Error(extractMessage(error, "Failed to deny return"));
   }
 }

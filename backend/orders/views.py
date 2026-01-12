@@ -18,6 +18,7 @@ from .encryption import (
     validate_credit_card_format, validate_cvv, validate_expiry_date,
     get_last_four_digits
 )
+from users.permissions import IsSalesManager, IsSalesOrProductManager
 
 
 def send_order_confirmation_email(order):
@@ -431,16 +432,24 @@ class OrderCancelView(APIView):
     def post(self, request, pk):
         order = get_object_or_404(Order, pk=pk, user=request.user)
 
-        if order.status != 'processing':  
+        # Only allow cancellation of orders that are still processing
+        if order.status not in ['processing', 'pending']:
             return Response(
-                {"error": "Cannot cancel order. It is already in transit or delivered."},
+                {"error": f"Cannot cancel order. Current status is '{order.get_status_display()}'. Only processing or pending orders can be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        order.status = 'cancalled'
-        order.save()
+        # Restore stock for all items in the order
+        with transaction.atomic():
+            for item in order.items.all():
+                item.product.stock += item.quantity
+                item.product.save()
 
-        return Response({"Order cancelled successfully."}, status=status.HTTP_200_OK)
+            # Update order status to cancelled
+            order.status = 'cancelled'
+            order.save()
+
+        return Response({"message": "Order cancelled successfully. Stock has been restored."}, status=status.HTTP_200_OK)
 
 
 class OrderReturnView(APIView):
@@ -455,13 +464,19 @@ class OrderReturnView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not order.delivered_at:  
-            return Response(
-                {"error": "Delivery date not found."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Use delivered_at if set, otherwise fall back to updated_at or created_at
+        # This handles cases where orders were marked as delivered before delivered_at was implemented
+        delivery_date = order.delivered_at
+        if not delivery_date:
+            # Fallback to updated_at or created_at for backward compatibility
+            delivery_date = order.updated_at or order.created_at
+            if not delivery_date:
+                return Response(
+                    {"error": "Delivery date not found."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        days_passed = (timezone.now() - order.delivered_at).days
+        days_passed = (timezone.now() - delivery_date).days
 
         if days_passed > 30:
             return Response(
@@ -472,8 +487,145 @@ class OrderReturnView(APIView):
         order.status = 'return_requested'
         order.save()
 
+        # Return the updated order so frontend can update the UI
+        serializer = OrderSerializer(order)
         return Response(
-            {"message": "Return request submitted. Waiting for approval."},
+            {
+                "message": "Return request submitted. Waiting for approval.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ApproveReturnView(APIView):
+    """
+    Sales Manager endpoint to approve a return request.
+    Changes status from 'return_requested' to 'returned' and restocks products.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot approve return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Restock products
+        with transaction.atomic():
+            for item in order.items.all():
+                item.product.stock += item.quantity
+                item.product.save()
+
+            # Update order status
+            order.status = 'returned'
+            order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request approved. Products have been restocked.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class DenyReturnView(APIView):
+    """
+    Sales Manager endpoint to deny a return request.
+    Changes status from 'return_requested' back to 'delivered'.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot deny return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Revert status back to delivered
+        order.status = 'delivered'
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request denied. Order status reverted to 'Delivered'.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ApproveReturnView(APIView):
+    """
+    Sales Manager endpoint to approve a return request.
+    Changes status from 'return_requested' to 'returned' and restocks products.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot approve return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Restock products
+        with transaction.atomic():
+            for item in order.items.all():
+                item.product.stock += item.quantity
+                item.product.save()
+
+            # Update order status
+            order.status = 'returned'
+            order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request approved. Products have been restocked.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class DenyReturnView(APIView):
+    """
+    Sales Manager endpoint to deny a return request.
+    Changes status from 'return_requested' back to 'delivered'.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot deny return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Revert status back to delivered
+        order.status = 'delivered'
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request denied. Order status reverted to 'Delivered'.",
+                "order": serializer.data
+            },
             status=status.HTTP_200_OK
         )
 
@@ -505,17 +657,17 @@ class OrderDetailView(generics.RetrieveAPIView):
 
 
 class AdminOrderListView(generics.ListAPIView):
-    """List all orders for admins."""
+    """List all orders for Sales Managers and Product Managers."""
     serializer_class = OrderSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsSalesOrProductManager]
 
     def get_queryset(self):
         return Order.objects.all().select_related("user").prefetch_related("items__product")
 
 
 class AdminOrderStatusUpdateView(APIView):
-    """Update order status (admin only)."""
-    permission_classes = [IsAdminUser]
+    """Update order status (Sales Manager or Product Manager)."""
+    permission_classes = [IsSalesOrProductManager]
 
     def patch(self, request, pk):
         order = get_object_or_404(Order, pk=pk)
@@ -532,7 +684,7 @@ class AdminOrderStatusUpdateView(APIView):
 
 
 @api_view(["PUT"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSalesOrProductManager])
 def admin_update_order_status(request, order_id):
 
     try:

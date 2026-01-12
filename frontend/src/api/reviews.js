@@ -75,17 +75,6 @@ export async function submitProductRating(productId, score) {
 
 // Admin functions for comment moderation
 export async function fetchPendingComments() {
-  if (USE_MOCK) {
-    await wait(80);
-    // Collect all pending comments from all products
-    const allPending = [];
-    for (const [productId, comments] of mockComments.entries()) {
-      const pending = comments.filter((c) => c.status === "pending");
-      allPending.push(...pending.map((c) => ({ ...c, product_id: productId })));
-    }
-    return allPending.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }
-
   try {
     const { data } = await api.get("/comments/pending/");
     if (Array.isArray(data)) return data;
@@ -100,19 +89,6 @@ export async function fetchPendingComments() {
 export async function updateCommentStatus(commentId, status) {
   if (!["pending", "approved", "rejected"].includes(status)) {
     throw new Error("Invalid status. Must be pending, approved, or rejected");
-  }
-
-  if (USE_MOCK) {
-    await wait(60);
-    // Find and update comment in mock store
-    for (const [productId, comments] of mockComments.entries()) {
-      const index = comments.findIndex((c) => c.id === commentId);
-      if (index >= 0) {
-        comments[index].status = status;
-        return { ...comments[index], product_id: productId };
-      }
-    }
-    throw new Error("Comment not found");
   }
 
   try {
