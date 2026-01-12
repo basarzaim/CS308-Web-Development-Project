@@ -10,6 +10,7 @@ class Customer(AbstractUser):
         ('Customer', 'Customer'),
         ('Product Manager', 'Product Manager'),
         ('Sales Manager', 'Sales Manager'),
+        ('Support Agent', 'Support Agent'),
     ]
 
     # 'email unique

@@ -26,6 +26,9 @@ urlpatterns = [
     path('api-auth/', include('rest_framework.urls')),
     # wishlist
     path('api/wishlist/', include('wishlist.api_urls')),
+    
+    # support/chat
+    path('api/support/', include('support.urls')),
 
 ]
 

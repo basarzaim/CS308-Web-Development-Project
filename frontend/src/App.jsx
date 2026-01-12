@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./App.css";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { isAdmin, isProductManager, isSalesManager } from "./utils/admin";
+import { isAdmin, isProductManager, isSalesManager, isSupportAgent } from "./utils/admin";
 import { getCartCount } from "./stores/cart";
 import { getWishlistCount } from "./stores/wishlist";
 
@@ -20,6 +20,7 @@ import Wishlist from "./pages/Wishlist.jsx";
 import LiveChat from "./components/LiveChat.jsx";
 import SalesManager from "./pages/SalesManager.jsx";
 import ProductManager from "./pages/ProductManager.jsx";
+import SupportDashboard from "./pages/SupportDashboard.jsx";
 
 function Navigation() {
   const { isAuthenticated, logout, user } = useAuth();
@@ -198,6 +199,23 @@ function Navigation() {
             onMouseLeave={(e) => (e.target.style.background = "transparent")}
           >
             Sales Manager
+          </Link>
+        )}
+        {isSupportAgent(user) && (
+          <Link
+            to="/support-dashboard"
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              textDecoration: "none",
+              transition: "all 0.2s ease",
+              padding: "4px 8px",
+              borderRadius: "6px",
+            }}
+            onMouseEnter={(e) => (e.target.style.background = "rgba(255, 255, 255, 0.2)")}
+            onMouseLeave={(e) => (e.target.style.background = "transparent")}
+          >
+            Support Dashboard
           </Link>
         )}
       </div>
@@ -401,6 +419,7 @@ export default function App() {
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/sales-manager" element={<SalesManager />} />
           <Route path="/product-manager" element={<ProductManager />} />
+          <Route path="/support-dashboard" element={<SupportDashboard />} />
           <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
         </Routes>
 

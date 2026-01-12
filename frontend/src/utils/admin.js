@@ -13,6 +13,12 @@ export function isSalesManager(user) {
   return user.role === "Sales Manager";
 }
 
+// Strict Support Agent check based on explicit role string
+export function isSupportAgent(user) {
+  if (!user) return false;
+  return user.role === "Support Agent";
+}
+
 // Utility function to check if current user is an admin-like user
 // Admins include Django staff and specific manager roles.
 export function isAdmin(user) {
