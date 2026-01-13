@@ -787,6 +787,7 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                 <th>Delivery Status</th>
                 <th>Shipping Address</th>
                 <th>Order Date</th>
+                <th>Delivery Time</th>
               </tr>
             </thead>
             <tbody>
@@ -825,6 +826,11 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                           <td rowSpan={items.length} className="pm-order-date">
                             {delivery.created_at ? new Date(delivery.created_at).toLocaleDateString() : "N/A"}
                           </td>
+                          <td rowSpan={items.length} className="pm-delivery-time">
+                            {delivery.delivered_at 
+                              ? new Date(delivery.delivered_at).toLocaleString() 
+                              : "Not Delivered"}
+                          </td>
                         </>
                       )}
                     </tr>
@@ -844,6 +850,11 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                       </td>
                       <td>{delivery.shipping_address || "N/A"}</td>
                       <td>{delivery.created_at ? new Date(delivery.created_at).toLocaleDateString() : "N/A"}</td>
+                      <td className="pm-delivery-time">
+                        {delivery.delivered_at 
+                          ? new Date(delivery.delivered_at).toLocaleString() 
+                          : "Not Delivered"}
+                      </td>
                     </tr>
                   );
                 }
