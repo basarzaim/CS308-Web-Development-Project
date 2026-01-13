@@ -349,10 +349,26 @@ export default function SupportDashboard() {
                   <div className="customer-info-section">
                     <strong>Orders:</strong> {customerDetails.orders_count}
                     {customerDetails.orders.length > 0 && (
-                      <ul>
+                      <ul className="orders-list">
                         {customerDetails.orders.map((order) => (
-                          <li key={order.id}>
-                            Order #{order.id} - {order.status} - ${order.total_price}
+                          <li key={order.id} className="order-item">
+                            <div className="order-header">
+                              <span className="order-id">Order #{order.id}</span>
+                              <span className={`order-status status-${order.status}`}>
+                                {order.status_display || order.status}
+                              </span>
+                            </div>
+                            <div className="order-details">
+                              <span className="order-price">${order.total_price}</span>
+                              <span className="order-date">
+                                {new Date(order.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            {order.status === 'delivered' && order.delivered_at && (
+                              <div className="order-delivery-time">
+                                <strong>Delivered:</strong> {new Date(order.delivered_at).toLocaleString()}
+                              </div>
+                            )}
                           </li>
                         ))}
                       </ul>

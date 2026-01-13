@@ -125,8 +125,10 @@ class ConversationViewSet(viewsets.ModelViewSet):
         orders_data = [{
             'id': o.id,
             'status': o.status,
+            'status_display': o.get_status_display(),
             'total_price': str(o.total_price),
             'created_at': o.created_at,
+            'delivered_at': o.delivered_at,  # Add delivery time
             'items_count': o.items.count()
         } for o in orders]
         
