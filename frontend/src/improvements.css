@@ -1,0 +1,434 @@
+/* Global UI Improvements - Better forms, buttons, and interactions */
+
+/* ===============================================
+   IMPROVED FORM INPUTS
+   =============================================== */
+
+/* Better text inputs with focus states */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+textarea,
+select {
+  transition: all 0.2s ease;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  outline: none;
+  background: white;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+textarea:focus,
+select:focus {
+  border-color: #0066FF;
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+}
+
+input[type="text"]:hover:not(:focus),
+input[type="email"]:hover:not(:focus),
+input[type="password"]:hover:not(:focus),
+input[type="number"]:hover:not(:focus),
+input[type="tel"]:hover:not(:focus),
+textarea:hover:not(:focus),
+select:hover:not(:focus) {
+  border-color: #9ca3af;
+}
+
+/* Error state for inputs */
+input.error,
+textarea.error,
+select.error {
+  border-color: #ef4444;
+  background-color: #fef2f2;
+}
+
+input.error:focus,
+textarea.error:focus,
+select.error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Success state for inputs */
+input.success,
+textarea.success,
+select.success {
+  border-color: #10b981;
+  background-color: #f0fdf4;
+}
+
+/* Disabled inputs */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ===============================================
+   IMPROVED BUTTONS
+   =============================================== */
+
+/* Primary buttons */
+button.primary-btn,
+.primary-btn {
+  background: linear-gradient(135deg, #0066FF, #0052CC);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 102, 255, 0.2);
+}
+
+button.primary-btn:hover:not(:disabled),
+.primary-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.3);
+  background: linear-gradient(135deg, #0052CC, #003D99);
+}
+
+button.primary-btn:active:not(:disabled),
+.primary-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 1px 4px rgba(0, 102, 255, 0.2);
+}
+
+button.primary-btn:disabled,
+.primary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Secondary buttons */
+button.secondary-btn,
+.secondary-btn {
+  background: white;
+  color: #0066FF;
+  border: 2px solid #0066FF;
+  border-radius: 8px;
+  padding: 10px 22px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+button.secondary-btn:hover:not(:disabled),
+.secondary-btn:hover:not(:disabled) {
+  background: #0066FF;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 102, 255, 0.2);
+}
+
+/* Danger/Delete buttons */
+button.danger-btn,
+.danger-btn {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.2);
+}
+
+button.danger-btn:hover:not(:disabled),
+.danger-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+/* Icon buttons */
+button.icon-btn,
+.icon-btn {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button.icon-btn:hover,
+.icon-btn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  transform: scale(1.1);
+}
+
+/* ===============================================
+   LOADING STATES
+   =============================================== */
+
+.loading-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* ===============================================
+   CARDS & CONTAINERS
+   =============================================== */
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.card-clickable {
+  cursor: pointer;
+}
+
+.card-clickable:active {
+  transform: translateY(0);
+}
+
+/* ===============================================
+   ALERTS & MESSAGES
+   =============================================== */
+
+.alert {
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.alert.success {
+  background: #d1fae5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.alert.error {
+  background: #fee2e2;
+  color: #991b1b;
+  border-left: 4px solid #ef4444;
+}
+
+.alert.warning {
+  background: #fef3c7;
+  color: #92400e;
+  border-left: 4px solid #f59e0b;
+}
+
+.alert.info {
+  background: #dbeafe;
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
+}
+
+/* ===============================================
+   BADGES
+   =============================================== */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.badge.primary {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badge.success {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.badge.danger {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.badge.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ===============================================
+   TOOLTIPS
+   =============================================== */
+
+[data-tooltip] {
+  position: relative;
+  cursor: help;
+}
+
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  background: #1f2937;
+  color: white;
+  border-radius: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  z-index: 1000;
+  margin-bottom: 8px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ===============================================
+   FOCUS VISIBLE (Accessibility)
+   =============================================== */
+
+*:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #0066FF;
+  outline-offset: 2px;
+}
+
+/* ===============================================
+   SMOOTH SCROLLING
+   =============================================== */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ===============================================
+   MOBILE IMPROVEMENTS
+   =============================================== */
+
+@media (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  button.primary-btn,
+  .primary-btn,
+  button.secondary-btn,
+  .secondary-btn {
+    padding: 14px 24px;
+    font-size: 16px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+}
+
+/* ===============================================
+   TRANSITIONS FOR COMMON ELEMENTS
+   =============================================== */
+
+a {
+  transition: color 0.2s ease;
+}
+
+img {
+  transition: opacity 0.2s ease;
+}
+
+/* ===============================================
+   SELECTION STYLING
+   =============================================== */
+
+::selection {
+  background: #0066FF;
+  color: white;
+}
+
+::-moz-selection {
+  background: #0066FF;
+  color: white;
+}

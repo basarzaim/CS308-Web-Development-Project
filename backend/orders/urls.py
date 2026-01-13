@@ -11,6 +11,7 @@ from .views import (
     admin_update_order_status,
     SendInvoiceView,
     DownloadInvoiceView,
+    SalesAnalyticsView,
 )
 
 urlpatterns = [
@@ -31,5 +32,6 @@ urlpatterns = [
     path("admin/update-status/<int:order_id>/", admin_update_order_status),
     path("<int:pk>/send-invoice/", SendInvoiceView.as_view(), name="send-invoice"),
 
-
+    # Sales Manager Analytics (Requirement #11)
+    path("analytics/", SalesAnalyticsView.as_view(), name="sales-analytics"),
 ]

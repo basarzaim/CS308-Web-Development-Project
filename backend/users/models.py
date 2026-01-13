@@ -10,11 +10,12 @@ class Customer(AbstractUser):
         ('Customer', 'Customer'),
         ('Product Manager', 'Product Manager'),
         ('Sales Manager', 'Sales Manager'),
+        ('Support Agent', 'Support Agent'),
     ]
 
     # 'email unique
     email = models.EmailField(unique=True)
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Customer')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='Customer')
 
 
     USERNAME_FIELD = 'email'

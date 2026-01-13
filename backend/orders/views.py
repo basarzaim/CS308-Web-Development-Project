@@ -254,10 +254,10 @@ class OrderCancelView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        order.status = 'cancalled'
+        order.status = 'cancelled'
         order.save()
 
-        return Response({"Order cancelled successfully."}, status=status.HTTP_200_OK)
+        return Response({"message": "Order cancelled successfully."}, status=status.HTTP_200_OK)
 
 
 class OrderReturnView(APIView):
@@ -462,3 +462,144 @@ class DownloadInvoiceView(APIView):
         response['Content-Disposition'] = f'attachment; filename="invoice_{order.id}.pdf"'
 
         return response
+
+
+class SalesAnalyticsView(APIView):
+    """
+    REQUIREMENT #11: Sales Manager Analytics
+    Calculate revenue and profit between given dates.
+    Returns data for charts and reports.
+    """
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        from datetime import datetime
+
+        # Get date range from query params (default: last 30 days)
+        start_date = request.query_params.get('start_date')
+        end_date = request.query_params.get('end_date')
+
+        # Parse dates
+        if start_date:
+            try:
+                start_date = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+            except ValueError:
+                return Response(
+                    {"error": "Invalid start_date format. Use ISO format (YYYY-MM-DD)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # Default: 30 days ago
+            from datetime import timedelta
+            start_date = timezone.now() - timedelta(days=30)
+
+        if end_date:
+            try:
+                end_date = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+            except ValueError:
+                return Response(
+                    {"error": "Invalid end_date format. Use ISO format (YYYY-MM-DD)"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        else:
+            # Default: now
+            end_date = timezone.now()
+
+        # Filter orders in date range (exclude cancelled and returned)
+        orders = Order.objects.filter(
+            created_at__gte=start_date,
+            created_at__lte=end_date
+        ).exclude(
+            status__in=['cancelled', 'returned']
+        )
+
+        # Calculate total revenue (sum of all order totals after discount)
+        total_revenue = Decimal('0.00')
+        total_cost = Decimal('0.00')
+        order_data = []
+
+        for order in orders:
+            # Calculate discounted total
+            discounted_total = order.discounted_total_price()
+            total_revenue += discounted_total
+
+            # Calculate cost (Requirement #11: Default 50% of sale price)
+            # For each item in order, cost = quantity * (unit_price * 0.5)
+            order_cost = Decimal('0.00')
+            for item in order.items.all():
+                # Cost defaults to 50% of sale price
+                item_cost = item.unit_price * Decimal('0.5') * item.quantity
+                order_cost += item_cost
+
+            total_cost += order_cost
+
+            # Collect per-order data for charts
+            order_data.append({
+                'id': order.id,
+                'date': order.created_at.isoformat(),
+                'revenue': float(discounted_total),
+                'cost': float(order_cost),
+                'profit': float(discounted_total - order_cost),
+                'status': order.status
+            })
+
+        # Calculate profit
+        total_profit = total_revenue - total_cost
+
+        # Calculate statistics
+        total_orders = orders.count()
+        delivered_orders = orders.filter(status='delivered').count()
+        processing_orders = orders.filter(status='processing').count()
+        in_transit_orders = orders.filter(status='in-transit').count()
+
+        # Calculate average order value
+        average_order_value = total_revenue / total_orders if total_orders > 0 else Decimal('0.00')
+
+        # Group by date for time series chart
+        from collections import defaultdict
+        daily_data = defaultdict(lambda: {'revenue': Decimal('0.00'), 'cost': Decimal('0.00'), 'orders': 0})
+
+        for order in orders:
+            date_key = order.created_at.date().isoformat()
+            discounted_total = order.discounted_total_price()
+
+            # Calculate order cost
+            order_cost = Decimal('0.00')
+            for item in order.items.all():
+                order_cost += item.unit_price * Decimal('0.5') * item.quantity
+
+            daily_data[date_key]['revenue'] += discounted_total
+            daily_data[date_key]['cost'] += order_cost
+            daily_data[date_key]['orders'] += 1
+
+        # Convert to list for chart
+        time_series = []
+        for date_key in sorted(daily_data.keys()):
+            data = daily_data[date_key]
+            time_series.append({
+                'date': date_key,
+                'revenue': float(data['revenue']),
+                'cost': float(data['cost']),
+                'profit': float(data['revenue'] - data['cost']),
+                'orders': data['orders']
+            })
+
+        return Response({
+            'summary': {
+                'total_revenue': float(total_revenue),
+                'total_cost': float(total_cost),
+                'total_profit': float(total_profit),
+                'profit_margin': float((total_profit / total_revenue * 100)) if total_revenue > 0 else 0,
+                'total_orders': total_orders,
+                'delivered_orders': delivered_orders,
+                'processing_orders': processing_orders,
+                'in_transit_orders': in_transit_orders,
+                'average_order_value': float(average_order_value),
+            },
+            'time_series': time_series,
+            'orders': order_data[:100],  # Limit to 100 most recent for performance
+            'date_range': {
+                'start': start_date.isoformat(),
+                'end': end_date.isoformat()
+            }
+        })

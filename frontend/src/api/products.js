@@ -1,5 +1,5 @@
 // src/api/products.js
-import { apiGet } from "./client";
+import { apiGet, api } from "./client";
 
 
 function mapSortToOrdering(sort) {
@@ -73,4 +73,22 @@ export async function fetchProductById(id) {
   if (Array.isArray(data.results)) return data.results[0] ?? null;
 
   return data;
+}
+
+export async function updateProductStock(productId, newStock) {
+  const numericId = Number(productId);
+  const numericStock = Number(newStock);
+
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid product ID");
+  }
+  if (!Number.isFinite(numericStock) || numericStock < 0) {
+    throw new Error("Invalid stock quantity");
+  }
+
+  const response = await api.patch(`/products/${numericId}/update_stock/`, {
+    stock: numericStock,
+  });
+
+  return response.data;
 }

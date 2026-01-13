@@ -18,7 +18,10 @@
       "Bash(tasklist:*)",
       "Bash(taskkill:*)",
       "Bash(rsync:*)",
-      "Bash(python -m json.tool:*)"
+      "Bash(python -m json.tool:*)",
+      "Bash(python manage.py createsuperuser:*)",
+      "Bash(python manage.py check:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": [],
     "ask": []

@@ -366,9 +366,23 @@ export default function ProductList() {
                           {p.name}
                         </h3>
                         <div className="pl-meta">
-                          <span className="pl-price">
-                            ${Number(p.price || 0).toFixed(2)}
-                          </span>
+                          {p.is_on_sale ? (
+                            <div className="pl-price-container">
+                              <span className="pl-price-original">
+                                ${Number(p.price || 0).toFixed(2)}
+                              </span>
+                              <span className="pl-price-sale">
+                                ${Number(p.discounted_price || 0).toFixed(2)}
+                              </span>
+                              <span className="pl-discount-badge">
+                                {p.discount_percentage}% OFF
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="pl-price">
+                              ${Number(p.price || 0).toFixed(2)}
+                            </span>
+                          )}
                           {p.rating != null && (
                             <span className="pl-rating">⭐ {p.rating}</span>
                           )}

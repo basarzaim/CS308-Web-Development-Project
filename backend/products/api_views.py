@@ -1,6 +1,8 @@
 # backend/products/api_views.py
 from django.db.models import Count          # 🔹 EK
-from rest_framework import viewsets
+from rest_framework import viewsets, status
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.views import APIView    # 🔹 EK
 from rest_framework.response import Response  # 🔹 EK
@@ -60,6 +62,41 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(warranty__gte=min_warranty)
 
         return queryset
+
+    @action(detail=True, methods=['patch'], permission_classes=[IsAdminUser])
+    def update_stock(self, request, pk=None):
+        """
+        Update stock for a specific product.
+        PATCH /api/products/{id}/update_stock/
+        Body: { "stock": 50 }
+        """
+        product = self.get_object()
+        new_stock = request.data.get('stock')
+
+        if new_stock is None:
+            return Response(
+                {"error": "Stock value is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            new_stock = int(new_stock)
+            if new_stock < 0:
+                return Response(
+                    {"error": "Stock cannot be negative"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "Invalid stock value"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        product.stock = new_stock
+        product.save(update_fields=['stock'])
+
+        serializer = self.get_serializer(product)
+        return Response(serializer.data)
 
 
 class CategoryListAPIView(APIView):

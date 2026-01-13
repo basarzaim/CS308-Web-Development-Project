@@ -10,6 +10,7 @@ import {
   clearCart,
 } from "../stores/cart";
 import { useAuth } from "../context/AuthContext";
+import PaymentForm from "../components/PaymentForm";
 import "./Checkout.css";
 
 const INITIAL_FORM = {
@@ -513,6 +514,16 @@ export default function Checkout() {
                 <option value="bank">Bank Transfer</option>
               </select>
             </label>
+
+            {/* Payment Form Component */}
+            <PaymentForm
+              paymentMethod={form.payment}
+              onPaymentDataChange={(data) => {
+                // Store payment data if needed for processing
+                // For now, just validate that card details are filled
+                console.log("Payment data:", data);
+              }}
+            />
 
             <button type="submit" className="primary-btn" disabled={placing || !cartItems.length}>
               {placing ? "Placing order…" : "Place order"}

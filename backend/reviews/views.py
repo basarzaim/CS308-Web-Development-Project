@@ -5,6 +5,7 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAdminUser
 from django.shortcuts import get_object_or_404
 from products.models import Product
+from orders.models import Order, OrderItem
 from .models import Comment, Rating
 from .serializers import CommentSerializer, RatingSerializer
 
@@ -21,10 +22,24 @@ class ProductCommentView(generics.ListCreateAPIView): #viewing comments
             status='approved'
         ).select_related('customer', 'product').order_by('-created_at')
     
-    def perform_create(self,serializer):
+    def perform_create(self, serializer):
         # we grab the information from the request and URL instead of directly pulling from user
         product_id = self.kwargs['product_id']
         product = get_object_or_404(Product, pk=product_id)
+
+        # REQUIREMENT #5: Check if user has purchased and received this product
+        # User must have a delivered order containing this product before commenting
+        has_delivered_order = OrderItem.objects.filter(
+            order__user=self.request.user,
+            order__status='delivered',
+            product=product
+        ).exists()
+
+        if not has_delivered_order:
+            raise ValidationError({
+                "error": "You can only comment on products you have purchased and received. "
+                         "Please wait until your order is delivered."
+            })
 
         serializer.save(customer=self.request.user, product=product)
 
@@ -36,8 +51,23 @@ class ProductRatingView(generics.CreateAPIView):
         product_id = self.kwargs['product_id']
         product = get_object_or_404(Product, pk=product_id)
 
-        if Rating.objects.filter(product=product, customer=self.request.user).exists(): #checks if user already rated
-            raise ValidationError("You have already rated this product!") #validation error, change here if you want to be able to rate products again,
+        # Check if user already rated this product
+        if Rating.objects.filter(product=product, customer=self.request.user).exists():
+            raise ValidationError("You have already rated this product!")
+
+        # REQUIREMENT #5: Check if user has purchased and received this product
+        # User must have a delivered order containing this product before rating
+        has_delivered_order = OrderItem.objects.filter(
+            order__user=self.request.user,
+            order__status='delivered',
+            product=product
+        ).exists()
+
+        if not has_delivered_order:
+            raise ValidationError({
+                "error": "You can only rate products you have purchased and received. "
+                         "Please wait until your order is delivered."
+            })
 
         serializer.save(customer=self.request.user, product=product)
 
