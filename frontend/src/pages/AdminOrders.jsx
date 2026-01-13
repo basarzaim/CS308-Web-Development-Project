@@ -179,13 +179,24 @@ export default function AdminOrders() {
                   <div className="order-info">
                     <h3>Order #{order.id}</h3>
                     <p className="order-date">
-                      {new Date(order.created_at).toLocaleDateString("en-US", {
+                      Order Date: {new Date(order.created_at).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
+                    </p>
+                    <p className="order-delivery-time">
+                      Delivery Time: {order.delivered_at 
+                        ? new Date(order.delivered_at).toLocaleDateString("en-US", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
+                        : "Not Delivered"}
                     </p>
                     {order.user && (
                       <p className="order-user">
