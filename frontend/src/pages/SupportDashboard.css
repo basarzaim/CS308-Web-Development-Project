@@ -315,6 +315,43 @@
   border-top: 1px solid #e0e0e0;
 }
 
+.wishlist-list {
+  list-style: none;
+  padding-left: 0;
+  margin-top: 8px;
+}
+
+.wishlist-item {
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.wishlist-item-name {
+  font-size: 0.75rem;
+  color: #0066ff;
+  font-weight: 500;
+  flex: 1;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.wishlist-item-name:hover {
+  color: #0052cc;
+  text-decoration: underline;
+}
+
+.wishlist-item-price {
+  font-size: 0.75rem;
+  color: #0066ff;
+  font-weight: 600;
+}
+
 .messages-container {
   flex: 1;
   overflow-y: auto;

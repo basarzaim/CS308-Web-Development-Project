@@ -376,6 +376,23 @@ export default function SupportDashboard() {
                   </div>
                   <div className="customer-info-section">
                     <strong>Wishlist Items:</strong> {customerDetails.wishlist_items_count}
+                    {customerDetails.wishlist && customerDetails.wishlist.length > 0 && (
+                      <ul className="wishlist-list">
+                        {customerDetails.wishlist.map((item) => (
+                          <li key={item.product_id} className="wishlist-item">
+                            <a 
+                              href={`/product/${item.product_id}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="wishlist-item-name"
+                            >
+                              {item.product_name}
+                            </a>
+                            <div className="wishlist-item-price">${item.price}</div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 </div>
               )}
