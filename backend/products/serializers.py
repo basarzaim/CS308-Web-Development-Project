@@ -5,10 +5,12 @@ class ProductSerializer(serializers.ModelSerializer):
     rating = serializers.FloatField(read_only=True, allow_null=True)
     category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
     category_slug = serializers.CharField(source='category.slug', read_only=True, allow_null=True)
+    has_discount = serializers.SerializerMethodField()
+    discount_percentage = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "stock", "warranty", "description", "rating", "image", "category", "category_name", "category_slug", "model", "serial_number", "distributor"]
+        fields = ["id", "name", "price", "original_price", "stock", "warranty", "description", "rating", "image", "category", "category_name", "category_slug", "model", "serial_number", "distributor", "has_discount", "discount_percentage"]
 
     def get_fields(self):
         """Dynamically exclude category field for partial updates"""
@@ -24,6 +26,28 @@ class ProductSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Price cannot be negative.")
         return value
 
+
+    def get_has_discount(self, obj):
+        """Check if product has a discount (original_price exists and is higher than current price)"""
+        if obj.original_price is None:
+            return False
+        try:
+            return float(obj.original_price) > float(obj.price)
+        except (ValueError, TypeError):
+            return False
+    
+    def get_discount_percentage(self, obj):
+        """Calculate discount percentage if product is discounted"""
+        if not self.get_has_discount(obj):
+            return None
+        try:
+            from decimal import Decimal
+            if obj.original_price == 0:
+                return None
+            discount_pct = ((obj.original_price - obj.price) / obj.original_price) * Decimal("100")
+            return round(float(discount_pct), 1)
+        except (ValueError, TypeError, ZeroDivisionError):
+            return None
 
     def to_representation(self, instance):
         """Round rating to 1 decimal place"""

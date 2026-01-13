@@ -270,7 +270,7 @@ export default function Profile() {
                 <div className="info-row">
                   <span className="info-label">Phone:</span>
                   <span className="info-value">
-                    {user?.phone || "Not set"}
+                    {user?.phone && user.phone.trim() !== "" ? user.phone : "Not set"}
                   </span>
                 </div>
                 <div className="info-row">

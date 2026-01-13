@@ -399,9 +399,16 @@ function DiscountManagement() {
           newPrice = Math.round(newPrice * 100) / 100;
           // PATCH only the price field so we don't make any
           // assumptions about other backend fields.
-          await api.patch(`/products/${id}/`, {
+          // When applying discount, set original_price to current price if not already set
+          // This preserves the original price before discount
+          const updateData = {
             price: newPrice,
-          });
+          };
+          // Only set original_price if it's not already set (preserve existing original_price)
+          if (!product.original_price) {
+            updateData.original_price = price;
+          }
+          await api.patch(`/products/${id}/`, updateData);
         })
       );
 

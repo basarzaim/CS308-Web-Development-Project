@@ -789,6 +789,54 @@
   transition: border-color 0.2s ease;
 }
 
+.pm-file-input {
+  padding: 8px;
+  border: 2px dashed #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.pm-file-input:hover {
+  border-color: #667eea;
+  background: #f0f4ff;
+}
+
+.pm-image-preview {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.pm-image-preview img {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  border: 2px solid #e5e7eb;
+  object-fit: contain;
+  background: #f9fafb;
+}
+
+.pm-remove-image-btn {
+  padding: 6px 12px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pm-remove-image-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
 .pm-form-group input:focus,
 .pm-form-group textarea:focus,
 .pm-form-group select:focus {
