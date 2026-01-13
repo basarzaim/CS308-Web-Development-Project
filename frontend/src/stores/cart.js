@@ -76,7 +76,7 @@ export async function getCart() {
         qty: item.qty || item.quantity,
         id: item.id,
         name: item.name,
-        price: item.price,
+        price: Number(item.price) || 0, // Ensure price is a number
       }));
     } catch (error) {
       console.error("Failed to fetch cart:", error);

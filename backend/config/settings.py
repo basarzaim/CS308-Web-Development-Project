@@ -63,7 +63,8 @@ INSTALLED_APPS = [
     'users',
     'reviews',
     'orders',
-    'wishlist'
+    'wishlist',
+    'support',
 ]
 
 MIDDLEWARE = [
@@ -204,11 +205,27 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.Customer'
 
+# Email Configuration - SendGrid SMTP
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "sandbox.smtp.mailtrap.io"
-EMAIL_PORT = 25
-EMAIL_USE_TLS = True
 
-EMAIL_HOST_USER = "6d7963a617fa45"
-EMAIL_HOST_PASSWORD = "64b0979d77b310"#"12345678Emir!"
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+# SendGrid SMTP Settings
+# Get these from your SendGrid account: https://app.sendgrid.com/settings/api_keys
+EMAIL_HOST = os.getenv('SENDGRID_SMTP_HOST', 'smtp.sendgrid.net')
+EMAIL_PORT = int(os.getenv('SENDGRID_SMTP_PORT', '587'))
+EMAIL_USE_TLS = True  # Use TLS for port 587, set to False and use port 465 for SSL
+
+# SendGrid requires username to be 'apikey' and password to be your API key
+EMAIL_HOST_USER = os.getenv('SENDGRID_USERNAME', 'apikey')
+EMAIL_HOST_PASSWORD = os.getenv('SENDGRID_API_KEY', '')
+
+# This must be a verified sender email in your SendGrid account
+# Set this in your .env file: SENDGRID_FROM_EMAIL=your-verified-email@yourdomain.com
+DEFAULT_FROM_EMAIL = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@yourdomain.com')
+
+# Optional: Reply-to address
+EMAIL_REPLY_TO = os.getenv('SENDGRID_REPLY_TO', None)
+
+# Encryption key for sensitive data (credit cards, etc.)
+# IMPORTANT: In production, set this as an environment variable (ENCRYPTION_KEY)
+# Generate a key using: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY', None)  # Will generate one if not set (development only)

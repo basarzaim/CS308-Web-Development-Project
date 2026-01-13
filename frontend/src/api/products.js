@@ -75,20 +75,74 @@ export async function fetchProductById(id) {
   return data;
 }
 
-export async function updateProductStock(productId, newStock) {
-  const numericId = Number(productId);
-  const numericStock = Number(newStock);
+// Product Management Functions
+export async function createProduct(productData) {
+  try {
+    const { data } = await api.post("/products/", productData);
+    return data;
+  } catch (error) {
+    const errorMessage = error?.response?.data?.detail || 
+                        error?.response?.data?.message || 
+                        (Array.isArray(error?.response?.data) ? error.response.data[0] : null) ||
+                        error?.message || 
+                        "Failed to create product";
+    throw new Error(errorMessage);
+  }
+}
 
+export async function deleteProduct(productId) {
+  const numericId = Number(productId);
   if (!Number.isFinite(numericId)) {
     throw new Error("Invalid product ID");
   }
-  if (!Number.isFinite(numericStock) || numericStock < 0) {
-    throw new Error("Invalid stock quantity");
+
+  const { data } = await api.delete(`/products/${numericId}/`);
+  return data;
+}
+
+export async function updateProduct(productId, updates) {
+  const numericId = Number(productId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid product ID");
   }
 
-  const response = await api.patch(`/products/${numericId}/update_stock/`, {
-    stock: numericStock,
-  });
+  const { data } = await api.patch(`/products/${numericId}/`, updates);
+  return data;
+}
 
-  return response.data;
+// Category Management Functions
+export async function createCategory(categoryData) {
+  try {
+    const { data } = await api.post("/products/categories/", categoryData);
+    return data;
+  } catch (error) {
+    // Extract error message from response
+    const errorMessage = error?.response?.data?.detail || 
+                        error?.response?.data?.message || 
+                        (Array.isArray(error?.response?.data) ? error.response.data[0] : null) ||
+                        error?.message || 
+                        "Failed to create category";
+    throw new Error(errorMessage);
+  }
+}
+
+export async function deleteCategory(categoryId) {
+  // Category IDs are now numeric IDs
+  const numericId = Number(categoryId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid category ID");
+  }
+
+  try {
+    const { data } = await api.delete(`/products/categories/${numericId}/`);
+    return data;
+  } catch (error) {
+    // Extract error message from response
+    const errorMessage = error?.response?.data?.detail || 
+                        error?.response?.data?.message || 
+                        (Array.isArray(error?.response?.data) ? error.response.data[0] : null) ||
+                        error?.message || 
+                        "Failed to delete category";
+    throw new Error(errorMessage);
+  }
 }

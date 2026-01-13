@@ -14,6 +14,8 @@ class CustomerProfileSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "role",
+            "taxID",
+            "home_address",
         ]
         read_only_fields = ["id", "email", "username", "role"]
 

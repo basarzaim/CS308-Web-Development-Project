@@ -15,8 +15,20 @@ class Customer(AbstractUser):
 
     # 'email unique
     email = models.EmailField(unique=True)
-    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='Customer')
-
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Customer')
+    
+    # Customer tax ID and home address
+    taxID = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Customer tax identification number"
+    )
+    home_address = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Customer's home address"
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']

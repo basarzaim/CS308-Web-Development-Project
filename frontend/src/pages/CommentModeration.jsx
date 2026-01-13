@@ -1,10 +1,34 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { isProductManager } from "../utils/admin";
 import { fetchPendingComments, updateCommentStatus } from "../api/reviews";
 import { fetchProductById } from "../api/products";
 import "./CommentModeration.css";
 
 export default function CommentModeration() {
+  const { user, loading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return <div style={{ padding: 24 }}>Loading...</div>;
+  }
+
+  if (!isProductManager(user)) {
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{
+          color: "#dc3545",
+          backgroundColor: "#f8d7da",
+          border: "1px solid #f5c6cb",
+          borderRadius: "4px",
+          padding: "12px",
+          marginBottom: "16px"
+        }}>
+          Access denied. Product Manager role required.
+        </div>
+      </div>
+    );
+  }
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");

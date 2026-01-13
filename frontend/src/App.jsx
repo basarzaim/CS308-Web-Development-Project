@@ -2,16 +2,7 @@ import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import "./App.css";
 import { AuthProvider, useAuth } from "./context/AuthContext";
-import { ToastProvider } from "./components/ToastContainer";
-import {
-  isAdmin,
-  canAccessComments,
-  canAccessOrders,
-  canAccessStock,
-  canAccessAnalytics,
-  canAccessDiscounts,
-  canAccessSupportChat
-} from "./utils/admin";
+import { isAdmin, isProductManager, isSalesManager, isSupportAgent } from "./utils/admin";
 import { getCartCount } from "./stores/cart";
 import { getWishlistCount } from "./stores/wishlist";
 
@@ -31,7 +22,9 @@ import AgentDashboard from "./pages/AgentDashboard.jsx";
 import SalesAnalytics from "./pages/SalesAnalytics.jsx";
 import DiscountManager from "./pages/DiscountManager.jsx";
 import LiveChat from "./components/LiveChat.jsx";
-import WishlistSaleNotification from "./components/WishlistSaleNotification.jsx";
+import SalesManager from "./pages/SalesManager.jsx";
+import ProductManager from "./pages/ProductManager.jsx";
+import SupportDashboard from "./pages/SupportDashboard.jsx";
 
 function Navigation() {
   const { isAuthenticated, logout, user } = useAuth();
@@ -162,8 +155,18 @@ function Navigation() {
         onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >My Orders</Link>}
-        {/* Product Manager: Comments, Orders, Stock */}
-        {canAccessComments(user) && <Link to="/admin/comments" style={{
+        {isProductManager(user) && <Link to="/product-manager" style={{
+          color: "#fff",
+          fontWeight: 600,
+          textDecoration: "none",
+          transition: "all 0.2s ease",
+          padding: "4px 8px",
+          borderRadius: "6px"
+        }}
+        onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
+        onMouseLeave={(e) => e.target.style.background = "transparent"}
+        >Product Manager</Link>}
+        {isProductManager(user) && <Link to="/admin/comments" style={{
           color: "#fff",
           fontWeight: 600,
           textDecoration: "none",
@@ -174,7 +177,7 @@ function Navigation() {
         onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >Moderate Comments</Link>}
-        {canAccessOrders(user) && <Link to="/admin/orders" style={{
+        {isProductManager(user) && <Link to="/admin/orders" style={{
           color: "#fff",
           fontWeight: 600,
           textDecoration: "none",
@@ -185,52 +188,40 @@ function Navigation() {
         onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
         onMouseLeave={(e) => e.target.style.background = "transparent"}
         >Manage Orders</Link>}
-        {canAccessStock(user) && <Link to="/admin/stock" style={{
-          color: "#fff",
-          fontWeight: 600,
-          textDecoration: "none",
-          transition: "all 0.2s ease",
-          padding: "4px 8px",
-          borderRadius: "6px"
-        }}
-        onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
-        onMouseLeave={(e) => e.target.style.background = "transparent"}
-        >Manage Stock</Link>}
-        {/* Support Agent: Support Chat only */}
-        {canAccessSupportChat(user) && <Link to="/admin/chat" style={{
-          color: "#fff",
-          fontWeight: 600,
-          textDecoration: "none",
-          transition: "all 0.2s ease",
-          padding: "4px 8px",
-          borderRadius: "6px"
-        }}
-        onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
-        onMouseLeave={(e) => e.target.style.background = "transparent"}
-        >Support Chat</Link>}
-        {/* Sales Manager: Analytics, Discounts */}
-        {canAccessAnalytics(user) && <Link to="/admin/analytics" style={{
-          color: "#fff",
-          fontWeight: 600,
-          textDecoration: "none",
-          transition: "all 0.2s ease",
-          padding: "4px 8px",
-          borderRadius: "6px"
-        }}
-        onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
-        onMouseLeave={(e) => e.target.style.background = "transparent"}
-        >Sales Analytics</Link>}
-        {canAccessDiscounts(user) && <Link to="/admin/discounts" style={{
-          color: "#fff",
-          fontWeight: 600,
-          textDecoration: "none",
-          transition: "all 0.2s ease",
-          padding: "4px 8px",
-          borderRadius: "6px"
-        }}
-        onMouseEnter={(e) => e.target.style.background = "rgba(255, 255, 255, 0.2)"}
-        onMouseLeave={(e) => e.target.style.background = "transparent"}
-        >Manage Discounts</Link>}
+        {isSalesManager(user) && (
+          <Link
+            to="/sales-manager"
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              textDecoration: "none",
+              transition: "all 0.2s ease",
+              padding: "4px 8px",
+              borderRadius: "6px",
+            }}
+            onMouseEnter={(e) => (e.target.style.background = "rgba(255, 255, 255, 0.2)")}
+            onMouseLeave={(e) => (e.target.style.background = "transparent")}
+          >
+            Sales Manager
+          </Link>
+        )}
+        {isSupportAgent(user) && (
+          <Link
+            to="/support-dashboard"
+            style={{
+              color: "#fff",
+              fontWeight: 600,
+              textDecoration: "none",
+              transition: "all 0.2s ease",
+              padding: "4px 8px",
+              borderRadius: "6px",
+            }}
+            onMouseEnter={(e) => (e.target.style.background = "rgba(255, 255, 255, 0.2)")}
+            onMouseLeave={(e) => (e.target.style.background = "transparent")}
+          >
+            Support Dashboard
+          </Link>
+        )}
       </div>
       <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
         {/* Wishlist Button */}
@@ -419,24 +410,23 @@ export default function App() {
         <ToastProvider>
           <Navigation />
 
-          <Routes>
-            <Route path="/" element={<Navigate to="/products" replace />} />
-            <Route path="/products" element={<ProductList />} />
-            <Route path="/product/:id" element={<Product />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/orders" element={<Orders />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/admin/comments" element={<CommentModeration />} />
-            <Route path="/admin/orders" element={<AdminOrders />} />
-            <Route path="/admin/stock" element={<StockManager />} />
-            <Route path="/admin/chat" element={<AgentDashboard />} />
-            <Route path="/admin/analytics" element={<SalesAnalytics />} />
-            <Route path="/admin/discounts" element={<DiscountManager />} />
-            <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
-          </Routes>
+        <Routes>
+          <Route path="/" element={<Navigate to="/products" replace />} />
+          <Route path="/products" element={<ProductList />} />
+          <Route path="/product/:id" element={<Product />} />
+          <Route path="/checkout" element={<Checkout />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/orders" element={<Orders />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/admin/comments" element={<CommentModeration />} />
+          <Route path="/admin/orders" element={<AdminOrders />} />
+          <Route path="/sales-manager" element={<SalesManager />} />
+          <Route path="/product-manager" element={<ProductManager />} />
+          <Route path="/support-dashboard" element={<SupportDashboard />} />
+          <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
+        </Routes>
 
           <LiveChat />
           <WishlistSaleNotification />

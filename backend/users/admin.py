@@ -8,6 +8,7 @@ class CustomUserAdmin(UserAdmin):
     model = Customer
     fieldsets = UserAdmin.fieldsets + (
         ('Role Information', {'fields': ('role',)}),
+        ('Additional Information', {'fields': ('taxID', 'home_address')}),
     )
     list_display = ['email', 'username', 'first_name', 'last_name', 'role', 'is_staff']
     list_filter = ['role', 'is_staff', 'is_active']

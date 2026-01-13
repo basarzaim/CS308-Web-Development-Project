@@ -14,6 +14,14 @@ from decimal import Decimal
 from django.core.mail import EmailMessage
 from .utils import generate_invoice_pdf
 from django.conf import settings
+from .encryption import (
+    validate_credit_card_format, validate_cvv, validate_expiry_date,
+    get_last_four_digits
+)
+from users.permissions import IsSalesManager, IsSalesOrProductManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def send_order_confirmation_email(order):
@@ -89,11 +97,13 @@ If you have any questions, contact us at support@cs308ecommerce.com
             pdf_buffer = generate_invoice_pdf(order)
 
             # Create email with attachment
+            reply_to = getattr(settings, 'EMAIL_REPLY_TO', None)
             email = EmailMessage(
                 subject=subject,
                 body=message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[order.user.email],
+                reply_to=[reply_to] if reply_to else None,
             )
 
             # Attach invoice PDF
@@ -105,9 +115,111 @@ If you have any questions, contact us at support@cs308ecommerce.com
 
             # Send email
             email.send(fail_silently=True)
-            print(f"✓ Order confirmation + invoice sent to {order.user.email}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Order confirmation + invoice sent to {order.user.email} for order {order.id}")
         except Exception as e:
-            print(f"✗ Email failed: {e}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Email failed for order {order.id}: {str(e)}")
+
+    # Send email in background thread so it doesn't block the response
+    email_thread = threading.Thread(target=send_email_async)
+    email_thread.daemon = True
+    email_thread.start()
+
+
+def send_return_approval_email(order):
+    """
+    Send return approval email to customer with refund amount.
+    Uses threading to avoid blocking the request.
+    """
+    import threading
+
+    def send_email_async():
+        try:
+            from django.core.mail import EmailMessage
+
+            # Validate that order has a user with email
+            if not order.user:
+                logger.error(f"Cannot send return approval email: Order {order.id} has no user")
+                return
+            
+            if not order.user.email:
+                logger.error(f"Cannot send return approval email: User {order.user.id} has no email address")
+                return
+
+            # Calculate refund amount (what the customer actually paid)
+            refund_amount = order.discounted_total_price()
+
+            # Prepare email subject
+            subject = f"Return Approved - Order #{order.id}"
+
+            # Prepare email body
+            items_text = "\n".join([
+                f"  - {item.product.name} x {item.quantity}"
+                for item in order.items.all()
+            ])
+
+            message = f"""
+Hello {order.shipping_name or order.user.username},
+
+Your return request for Order #{order.id} has been approved.
+
+Return Details:
+---------------
+Order Number: #{order.id}
+Original Order Date: {order.created_at.strftime('%B %d, %Y at %I:%M %p')}
+Return Approved Date: {timezone.now().strftime('%B %d, %Y at %I:%M %p')}
+
+Items Returned:
+{items_text}
+
+Refund Information:
+-------------------
+Refund Amount: ${float(refund_amount):.2f}
+
+The refund amount has been calculated based on the original purchase price (after any discounts applied at the time of purchase).
+
+Your refund will be processed to your original payment method within 5-10 business days.
+
+All returned items have been restocked and are now available for other customers.
+
+If you have any questions about your return or refund, please contact our support team.
+
+Thank you for your business!
+
+Best regards,
+CS308 E-Commerce Team
+
+---
+This is an automated email. Please do not reply to this message.
+If you have any questions, contact us at support@cs308ecommerce.com
+            """
+
+            # Create email
+            reply_to = getattr(settings, 'EMAIL_REPLY_TO', None)
+            email = EmailMessage(
+                subject=subject,
+                body=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[order.user.email],
+                reply_to=[reply_to] if reply_to else None,
+            )
+
+            # Send email
+            # Check if email backend is configured
+            if not settings.EMAIL_HOST_PASSWORD:
+                logger.warning(f"Email not configured (EMAIL_HOST_PASSWORD is empty). Cannot send return approval email for order {order.id}")
+                return
+            
+            result = email.send(fail_silently=True)
+            if result:
+                logger.info(f"Return approval email sent successfully to {order.user.email} for order {order.id}")
+            else:
+                logger.error(f"Return approval email failed to send to {order.user.email} for order {order.id} (send() returned False)")
+        except Exception as e:
+            logger.error(f"Return approval email failed for order {order.id}: {str(e)}", exc_info=True)
 
     # Send email in background thread so it doesn't block the response
     email_thread = threading.Thread(target=send_email_async)
@@ -128,6 +240,7 @@ class CheckoutView(APIView):
         user = request.user
         items_data = request.data.get("items") or []
         shipping_data = request.data.get("shipping", {})
+        totals_data = request.data.get("totals", {})
 
         # If no items provided, fall back to server cart for authenticated users
         use_cart = not items_data and user is not None
@@ -149,14 +262,101 @@ class CheckoutView(APIView):
                             status=status.HTTP_400_BAD_REQUEST,
                         )
 
+                # Get payment information
+                payment_data = request.data.get("payment", {})
+                payment_method = payment_data.get("method", "pending")
+                
+                # Validate and process credit card information if payment method is credit/debit card
+                card_number = None
+                card_cvv = None
+                card_expiry_month = None
+                card_expiry_year = None
+                card_holder_name = None
+                
+                if payment_method in ['credit_card', 'debit_card']:
+                    # Get credit card information
+                    card_data = payment_data.get("card", {})
+                    card_number = card_data.get("number", "").strip()
+                    card_cvv = card_data.get("cvv", "").strip()
+                    card_expiry_month = card_data.get("expiry_month", "").strip()
+                    card_expiry_year = card_data.get("expiry_year", "").strip()
+                    card_holder_name = card_data.get("holder_name", "").strip()
+                    
+                    # Validate credit card information
+                    if not card_number:
+                        return Response(
+                            {"error": "Credit card number is required for card payments."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate card number format (Luhn algorithm)
+                    is_valid, error_msg = validate_credit_card_format(card_number)
+                    if not is_valid:
+                        return Response(
+                            {"error": f"Invalid credit card: {error_msg}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate CVV
+                    if not card_cvv:
+                        return Response(
+                            {"error": "CVV is required for card payments."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    is_valid, error_msg = validate_cvv(card_cvv)
+                    if not is_valid:
+                        return Response(
+                            {"error": f"Invalid CVV: {error_msg}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate expiry date
+                    if not card_expiry_month or not card_expiry_year:
+                        return Response(
+                            {"error": "Card expiry date (month and year) is required."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    is_valid, error_msg = validate_expiry_date(card_expiry_month, card_expiry_year)
+                    if not is_valid:
+                        return Response(
+                            {"error": f"Invalid expiry date: {error_msg}"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    # Validate cardholder name
+                    if not card_holder_name:
+                        return Response(
+                            {"error": "Cardholder name is required."},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                
+                # Get shipping fee from totals, default to 0
+                shipping_fee = Decimal(str(totals_data.get('shipping', 0) or 0))
+                
                 order = Order.objects.create(
                     user=user,
                     total_price=0,
+                    shipping_fee=shipping_fee,
+                    payment_method=payment_method,
                     shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
                     shipping_address=shipping_data.get('address', ''),
                     shipping_city=shipping_data.get('city', ''),
                     shipping_phone=shipping_data.get('phone', '')
                 )
+                
+                # Store credit card information securely if provided
+                if payment_method in ['credit_card', 'debit_card'] and card_number:
+                    order.set_card_number(card_number)
+                    order.card_expiry_month = card_expiry_month
+                    order.card_expiry_year = card_expiry_year
+                    order.card_holder_name = card_holder_name
+                    # CVV is NOT stored (PCI DSS compliance)
+                    order.is_paid = True  # Mark as paid when card info is provided
+                    order.paid_at = timezone.now()
+                    order.save()
+                
                 total = Decimal("0")
 
                 for item in cart_items:
@@ -172,7 +372,8 @@ class CheckoutView(APIView):
                     item.product.stock -= item.quantity
                     item.product.save()
 
-                order.total_price = total
+                # Total price = subtotal (products) + shipping fee
+                order.total_price = total + order.shipping_fee
                 order.save()
 
                 # clear cart
@@ -183,7 +384,10 @@ class CheckoutView(APIView):
                     send_order_confirmation_email(order)
                 except Exception as e:
                     # Log error but don't fail the order creation
-                    print(f"Failed to send order confirmation email: {e}")
+                    # IMPORTANT: Never log credit card data - only log error message
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    logger.error(f"Failed to send order confirmation email for order {order.id}: {str(e)}")
 
                 serializer = OrderSerializer(order)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -207,14 +411,102 @@ class CheckoutView(APIView):
             if not normalized:
                 return Response({"error": "Your cart is empty."}, status=status.HTTP_400_BAD_REQUEST)
 
+            # Get payment information
+            payment_data = request.data.get("payment", {})
+            payment_method = payment_data.get("method", "pending")
+            
+            # Validate and process credit card information if payment method is credit/debit card
+            card_number = None
+            card_cvv = None
+            card_expiry_month = None
+            card_expiry_year = None
+            card_holder_name = None
+            
+            if payment_method in ['credit_card', 'debit_card']:
+                # Get credit card information
+                card_data = payment_data.get("card", {})
+                card_number = card_data.get("number", "").strip()
+                card_cvv = card_data.get("cvv", "").strip()
+                card_expiry_month = card_data.get("expiry_month", "").strip()
+                card_expiry_year = card_data.get("expiry_year", "").strip()
+                card_holder_name = card_data.get("holder_name", "").strip()
+                
+                # Validate credit card information
+                if not card_number:
+                    return Response(
+                        {"error": "Credit card number is required for card payments."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate card number format (Luhn algorithm)
+                is_valid, error_msg = validate_credit_card_format(card_number)
+                if not is_valid:
+                    return Response(
+                        {"error": f"Invalid credit card: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate CVV
+                if not card_cvv:
+                    return Response(
+                        {"error": "CVV is required for card payments."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                is_valid, error_msg = validate_cvv(card_cvv)
+                if not is_valid:
+                    return Response(
+                        {"error": f"Invalid CVV: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate expiry date
+                if not card_expiry_month or not card_expiry_year:
+                    return Response(
+                        {"error": "Card expiry date (month and year) is required."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                is_valid, error_msg = validate_expiry_date(card_expiry_month, card_expiry_year)
+                if not is_valid:
+                    return Response(
+                        {"error": f"Invalid expiry date: {error_msg}"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Validate cardholder name
+                if not card_holder_name:
+                    return Response(
+                        {"error": "Cardholder name is required."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            
+            # Get shipping fee from totals, default to 0
+            shipping_fee = Decimal(str(totals_data.get('shipping', 0) or 0))
+            
+            # Create order
             order = Order.objects.create(
                 user=user,
                 total_price=0,
+                shipping_fee=shipping_fee,
+                payment_method=payment_method,
                 shipping_name=shipping_data.get('full_name') or shipping_data.get('name', ''),
                 shipping_address=shipping_data.get('address', ''),
                 shipping_city=shipping_data.get('city', ''),
                 shipping_phone=shipping_data.get('phone', '')
             )
+            
+            # Store credit card information securely if provided
+            if payment_method in ['credit_card', 'debit_card'] and card_number:
+                order.set_card_number(card_number)
+                order.card_expiry_month = card_expiry_month
+                order.card_expiry_year = card_expiry_year
+                order.card_holder_name = card_holder_name
+                # CVV is NOT stored (PCI DSS compliance)
+                order.is_paid = True  # Mark as paid when card info is provided
+                order.paid_at = timezone.now()
+                order.save()
+            
             total = Decimal("0")
 
             for product, qty in normalized:
@@ -228,7 +520,8 @@ class CheckoutView(APIView):
                 product.stock -= qty
                 product.save()
 
-            order.total_price = total
+            # Total price = subtotal (products) + shipping fee
+            order.total_price = total + order.shipping_fee
             order.save()
 
             # Send order confirmation email
@@ -236,7 +529,10 @@ class CheckoutView(APIView):
                 send_order_confirmation_email(order)
             except Exception as e:
                 # Log error but don't fail the order creation
-                print(f"Failed to send order confirmation email: {e}")
+                # IMPORTANT: Never log credit card data - only log error message
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send order confirmation email for order {order.id}: {str(e)}")
 
             serializer = OrderSerializer(order)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -248,16 +544,24 @@ class OrderCancelView(APIView):
     def post(self, request, pk):
         order = get_object_or_404(Order, pk=pk, user=request.user)
 
-        if order.status != 'processing':  
+        # Only allow cancellation of orders that are still processing
+        if order.status not in ['processing', 'pending']:
             return Response(
-                {"error": "Cannot cancel order. It is already in transit or delivered."},
+                {"error": f"Cannot cancel order. Current status is '{order.get_status_display()}'. Only processing or pending orders can be cancelled."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        order.status = 'cancelled'
-        order.save()
+        # Restore stock for all items in the order
+        with transaction.atomic():
+            for item in order.items.all():
+                item.product.stock += item.quantity
+                item.product.save()
 
-        return Response({"message": "Order cancelled successfully."}, status=status.HTTP_200_OK)
+            # Update order status to cancelled
+            order.status = 'cancelled'
+            order.save()
+
+        return Response({"message": "Order cancelled successfully. Stock has been restored."}, status=status.HTTP_200_OK)
 
 
 class OrderReturnView(APIView):
@@ -272,13 +576,19 @@ class OrderReturnView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not order.delivered_at:  
-            return Response(
-                {"error": "Delivery date not found."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Use delivered_at if set, otherwise fall back to updated_at or created_at
+        # This handles cases where orders were marked as delivered before delivered_at was implemented
+        delivery_date = order.delivered_at
+        if not delivery_date:
+            # Fallback to updated_at or created_at for backward compatibility
+            delivery_date = order.updated_at or order.created_at
+            if not delivery_date:
+                return Response(
+                    {"error": "Delivery date not found."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
-        days_passed = (timezone.now() - order.delivered_at).days
+        days_passed = (timezone.now() - delivery_date).days
 
         if days_passed > 30:
             return Response(
@@ -289,8 +599,159 @@ class OrderReturnView(APIView):
         order.status = 'return_requested'
         order.save()
 
+        # Return the updated order so frontend can update the UI
+        serializer = OrderSerializer(order)
         return Response(
-            {"message": "Return request submitted. Waiting for approval."},
+            {
+                "message": "Return request submitted. Waiting for approval.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ApproveReturnView(APIView):
+    """
+    Sales Manager endpoint to approve a return request.
+    Changes status from 'return_requested' to 'returned' and restocks products.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot approve return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Restock products
+        with transaction.atomic():
+            for item in order.items.all():
+                item.product.stock += item.quantity
+                item.product.save()
+
+            # Update order status
+            order.status = 'returned'
+            order.save()
+
+        # Send return approval email with refund amount
+        try:
+            send_return_approval_email(order)
+        except Exception as e:
+            # Log error but don't fail the return approval
+            logger.error(f"Failed to send return approval email for order {order.id}: {str(e)}")
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request approved. Products have been restocked and customer has been notified.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class DenyReturnView(APIView):
+    """
+    Sales Manager endpoint to deny a return request.
+    Changes status from 'return_requested' back to 'delivered'.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot deny return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Revert status back to delivered
+        order.status = 'delivered'
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request denied. Order status reverted to 'Delivered'.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class ApproveReturnView(APIView):
+    """
+    Sales Manager endpoint to approve a return request.
+    Changes status from 'return_requested' to 'returned' and restocks products.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot approve return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Restock products
+        with transaction.atomic():
+            for item in order.items.all():
+                item.product.stock += item.quantity
+                item.product.save()
+
+            # Update order status
+            order.status = 'returned'
+            order.save()
+
+        # Send return approval email with refund amount
+        try:
+            send_return_approval_email(order)
+        except Exception as e:
+            # Log error but don't fail the return approval
+            logger.error(f"Failed to send return approval email for order {order.id}: {str(e)}")
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request approved. Products have been restocked and customer has been notified.",
+                "order": serializer.data
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+class DenyReturnView(APIView):
+    """
+    Sales Manager endpoint to deny a return request.
+    Changes status from 'return_requested' back to 'delivered'.
+    """
+    permission_classes = [IsSalesManager]
+
+    def post(self, request, pk):
+        order = get_object_or_404(Order, pk=pk)
+
+        if order.status != 'return_requested':
+            return Response(
+                {"error": f"Cannot deny return. Order status is '{order.get_status_display()}', expected 'Return Requested'."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Revert status back to delivered
+        order.status = 'delivered'
+        order.save()
+
+        serializer = OrderSerializer(order)
+        return Response(
+            {
+                "message": "Return request denied. Order status reverted to 'Delivered'.",
+                "order": serializer.data
+            },
             status=status.HTTP_200_OK
         )
 
@@ -322,17 +783,17 @@ class OrderDetailView(generics.RetrieveAPIView):
 
 
 class AdminOrderListView(generics.ListAPIView):
-    """List all orders for admins."""
+    """List all orders for Sales Managers and Product Managers."""
     serializer_class = OrderSerializer
-    permission_classes = [IsAdminUser]
+    permission_classes = [IsSalesOrProductManager]
 
     def get_queryset(self):
         return Order.objects.all().select_related("user").prefetch_related("items__product")
 
 
 class AdminOrderStatusUpdateView(APIView):
-    """Update order status (admin only)."""
-    permission_classes = [IsAdminUser]
+    """Update order status (Sales Manager or Product Manager)."""
+    permission_classes = [IsSalesOrProductManager]
 
     def patch(self, request, pk):
         order = get_object_or_404(Order, pk=pk)
@@ -349,7 +810,7 @@ class AdminOrderStatusUpdateView(APIView):
 
 
 @api_view(["PUT"])
-@permission_classes([IsAdminUser])
+@permission_classes([IsSalesOrProductManager])
 def admin_update_order_status(request, order_id):
 
     try:
@@ -423,10 +884,13 @@ class SendInvoiceView(APIView):
         pdf_buffer = generate_invoice_pdf(order)
 
         # Email oluştur
+        reply_to = getattr(settings, 'EMAIL_REPLY_TO', None)
         email = EmailMessage(
             subject=f"Invoice for Order #{order.id}",
             body="Thank you for your purchase. Your invoice is attached.",
+            from_email=settings.DEFAULT_FROM_EMAIL,
             to=[request.user.email],
+            reply_to=[reply_to] if reply_to else None,
         )
 
         # PDF'i maile ekle
@@ -445,14 +909,26 @@ class DownloadInvoiceView(APIView):
     """
     Download PDF invoice for an order.
     Returns the PDF file directly as a download.
+    Allows order owners OR Sales Managers to download.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request, pk):
         from django.http import HttpResponse
 
-        # Get order for current user only
-        order = get_object_or_404(Order, pk=pk, user=request.user)
+        # Get the order
+        order = get_object_or_404(Order, pk=pk)
+
+        # Check permissions: order owner OR Sales Manager
+        user = request.user
+        is_owner = order.user == user
+        is_sales_manager = getattr(user, "role", None) == "Sales Manager" or user.is_staff
+
+        if not (is_owner or is_sales_manager):
+            return Response(
+                {"detail": "You can only download invoices for your own orders."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
         # Generate PDF
         pdf_buffer = generate_invoice_pdf(order)

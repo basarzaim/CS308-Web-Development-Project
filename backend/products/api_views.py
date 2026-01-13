@@ -1,20 +1,23 @@
 # backend/products/api_views.py
 from django.db.models import Count          # 🔹 EK
 from rest_framework import viewsets, status
-from rest_framework.decorators import action
-from rest_framework.permissions import IsAdminUser
 from rest_framework.filters import SearchFilter, OrderingFilter
 from rest_framework.views import APIView    # 🔹 EK
 from rest_framework.response import Response  # 🔹 EK
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from django.shortcuts import get_object_or_404
 
-from .models import Product
-from .serializers import ProductSerializer
+from .models import Product, Category
+from .serializers import ProductSerializer, CategorySerializer
 
 
-class ProductViewSet(viewsets.ReadOnlyModelViewSet):
+class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]  # Allow read access to everyone, write requires auth
 
-    #  Search 
+    # Allow read operations for all authenticated users, restrict write operations to Product Managers
+
+    #  Search
     filter_backends = [SearchFilter, OrderingFilter]
 
     # search: ?search=iphone
@@ -28,7 +31,7 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         from django.db.models import Avg, Value
         from django.db.models.functions import Coalesce
 
-        queryset = Product.objects.all().annotate(
+        queryset = Product.objects.select_related('category').all().annotate(
             rating=Avg('reviews__score'),
             # Add a field for sorting: null ratings get -1 so they appear last when descending
             rating_sort=Coalesce(Avg('reviews__score'), Value(-1.0))
@@ -37,7 +40,17 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
         # CATEGORY FILTER
         category = self.request.query_params.get("category")
         if category:
-            queryset = queryset.filter(category=category)
+            # Try to filter by category slug first, then by ID
+            try:
+                category_obj = Category.objects.get(slug=category)
+                queryset = queryset.filter(category=category_obj)
+            except Category.DoesNotExist:
+                try:
+                    category_obj = Category.objects.get(id=int(category))
+                    queryset = queryset.filter(category=category_obj)
+                except (Category.DoesNotExist, ValueError):
+                    # If category doesn't exist, return empty queryset
+                    queryset = queryset.none()
 
         # PRICE FILTER
         min_price = self.request.query_params.get("min_price")
@@ -63,71 +76,182 @@ class ProductViewSet(viewsets.ReadOnlyModelViewSet):
 
         return queryset
 
-    @action(detail=True, methods=['patch'], permission_classes=[IsAdminUser])
-    def update_stock(self, request, pk=None):
-        """
-        Update stock for a specific product.
-        PATCH /api/products/{id}/update_stock/
-        Body: { "stock": 50 }
-        """
-        product = self.get_object()
-        new_stock = request.data.get('stock')
+    def check_product_manager_permission(self):
+        """Check if user is Product Manager"""
+        user = self.request.user
+        user_role = getattr(user, "role", None)
+        # Also allow Django staff (superusers) to perform these operations
+        return user.is_staff or user_role == "Product Manager"
 
-        if new_stock is None:
+    def check_sales_or_product_manager_permission(self):
+        """Check if user is Product Manager or Sales Manager (for price updates)"""
+        user = self.request.user
+        user_role = getattr(user, "role", None)
+        # Also allow Django staff (superusers) to perform these operations
+        return user.is_staff or user_role == "Product Manager" or user_role == "Sales Manager"
+
+    def create(self, request, *args, **kwargs):
+        if not self.check_product_manager_permission():
             return Response(
-                {"error": "Stock value is required"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "Only Product Manager can create products."},
+                status=status.HTTP_403_FORBIDDEN
             )
+        return super().create(request, *args, **kwargs)
 
-        try:
-            new_stock = int(new_stock)
-            if new_stock < 0:
-                return Response(
-                    {"error": "Stock cannot be negative"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        except (ValueError, TypeError):
+    def update(self, request, *args, **kwargs):
+        if not self.check_sales_or_product_manager_permission():
             return Response(
-                {"error": "Invalid stock value"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "Only Product Manager or Sales Manager can update products."},
+                status=status.HTTP_403_FORBIDDEN
             )
+        
+        # Get the instance before update to check if price changed
+        instance = self.get_object()
+        old_price = instance.price
+        
+        # Perform the update
+        response = super().update(request, *args, **kwargs)
+        
+        # After update, check if price changed and update wishlist items
+        instance.refresh_from_db()
+        if 'price' in request.data and instance.price != old_price:
+            # Price was changed directly (not via discount)
+            # Only update price_when_added if the new price is HIGHER than current price_when_added
+            # This ensures that:
+            # - If price increases, that becomes the new baseline for discount detection
+            # - If price decreases, we keep the original baseline so discounts can still be detected
+            from wishlist.models import Wishlist
+            from decimal import Decimal
+            
+            wishlist_items = Wishlist.objects.filter(product=instance)
+            for item in wishlist_items:
+                if item.price_when_added is None:
+                    # No baseline set, use new price
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                elif Decimal(str(instance.price)) > Decimal(str(item.price_when_added)):
+                    # New price is higher, update baseline
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                # If new price is lower, keep original price_when_added for discount detection
+        
+        return response
 
-        product.stock = new_stock
-        product.save(update_fields=['stock'])
+    def partial_update(self, request, *args, **kwargs):
+        if not self.check_sales_or_product_manager_permission():
+            return Response(
+                {"detail": "Only Product Manager or Sales Manager can update products."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get the instance before update to check if price changed
+        instance = self.get_object()
+        old_price = instance.price
+        
+        # Perform the update
+        response = super().partial_update(request, *args, **kwargs)
+        
+        # After update, check if price changed and update wishlist items
+        instance.refresh_from_db()
+        if 'price' in request.data and instance.price != old_price:
+            # Price was changed directly (not via discount)
+            # Only update price_when_added if the new price is HIGHER than current price_when_added
+            # This ensures that:
+            # - If price increases, that becomes the new baseline for discount detection
+            # - If price decreases, we keep the original baseline so discounts can still be detected
+            from wishlist.models import Wishlist
+            from decimal import Decimal
+            
+            wishlist_items = Wishlist.objects.filter(product=instance)
+            for item in wishlist_items:
+                if item.price_when_added is None:
+                    # No baseline set, use new price
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                elif Decimal(str(instance.price)) > Decimal(str(item.price_when_added)):
+                    # New price is higher, update baseline
+                    item.price_when_added = instance.price
+                    item.save(update_fields=['price_when_added'])
+                # If new price is lower, keep original price_when_added for discount detection
+        
+        return response
 
-        serializer = self.get_serializer(product)
-        return Response(serializer.data)
+    def destroy(self, request, *args, **kwargs):
+        if not self.check_product_manager_permission():
+            return Response(
+                {"detail": "Only Product Manager can delete products."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class CategoryListAPIView(APIView):
     """
     GET /api/categories/  -> [
-      { "slug": "phones", "name": "Phones", "product_count": 5 },
+      { "id": 1, "slug": "phones", "name": "Phones", "product_count": 5 },
       ...
     ]
+    POST /api/categories/ -> Create new category (Product Manager only)
+    DELETE /api/categories/{id}/ -> Delete category (Product Manager only)
     """
+    permission_classes = [IsAuthenticatedOrReadOnly]  # Allow read access to everyone
+
+    def check_product_manager_permission(self):
+        """Check if user is Product Manager"""
+        user = self.request.user
+        user_role = getattr(user, "role", None)
+        # Also allow Django staff (superusers) to perform these operations
+        return user.is_staff or user_role == "Product Manager"
 
     def get(self, request, *args, **kwargs):
-        qs = (
-            Product.objects
-            .values("category")
-            .annotate(product_count=Count("id"))
-            .order_by("category")
-        )
+        # Get all categories with product counts
+        categories = Category.objects.annotate(
+            product_count=Count('product')
+        ).order_by('name')
 
-        # CATEGORY_CHOICES'tan label map'i üretelim
-        # Örn: { "phones": "Phones", ... }
-        choices_map = dict(Product.CATEGORY_CHOICES)
+        serializer = CategorySerializer(categories, many=True)
+        return Response(serializer.data)
 
-        data = []
-        for row in qs:
-            cat = row["category"]
-            if not cat:
-                continue
-            data.append({
-                "slug": cat,
-                "name": choices_map.get(cat, cat),
-                "product_count": row["product_count"],
-            })
+    def post(self, request, *args, **kwargs):
+        if not self.check_product_manager_permission():
+            return Response(
+                {"detail": "Only Product Manager can create categories."},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
-        return Response(data)
+        serializer = CategorySerializer(data=request.data)
+        if serializer.is_valid():
+            category = serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def delete(self, request, category_id=None, *args, **kwargs):
+        if not self.check_product_manager_permission():
+            return Response(
+                {"detail": "Only Product Manager can delete categories."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            category = Category.objects.get(id=category_id)
+        except Category.DoesNotExist:
+            return Response(
+                {"detail": "Category not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Check if category has products
+        product_count = category.product_set.count()
+        if product_count > 0:
+            return Response(
+                {"detail": f"Cannot delete category '{category.name}' because it contains {product_count} product(s). Move or delete the products first."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Delete the category
+        category_name = category.name
+        category.delete()
+
+        return Response({
+            "message": f"Category '{category_name}' deleted successfully."
+        }, status=status.HTTP_200_OK)

@@ -1,17 +1,13 @@
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('orders', '0004_remove_order_shipping_address_and_more'),
+        ("orders", "0004_remove_order_shipping_address_and_more"),
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='order',
-            name='discount_percentage',
-            field=models.DecimalField(decimal_places=2, default=0, max_digits=5),
-        ),
+        # No-op: discount_percentage was already added in 0004.
+        # Keeping this migration to preserve history/dependencies.
     ]
-
