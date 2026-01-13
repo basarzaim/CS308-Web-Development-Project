@@ -51,7 +51,26 @@ export default function Orders() {
       setError("");
       setNotice("");
       const updatedOrder = await cancelOrder(orderId);
-      setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      
+      // If updatedOrder is a full order object, use it; otherwise merge status update
+      if (updatedOrder && updatedOrder.id) {
+        // Full order object returned
+        setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      } else if (updatedOrder && updatedOrder.status) {
+        // Only status returned, merge with existing order
+        setOrders(orders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: updatedOrder.status }
+            : order
+        ));
+      } else {
+        // Fallback: update status locally
+        setOrders(orders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'cancelled' }
+            : order
+        ));
+      }
       setNotice("Order cancelled successfully");
     } catch (err) {
       setError(err.message);
@@ -68,7 +87,26 @@ export default function Orders() {
       setError("");
       setNotice("");
       const updatedOrder = await returnOrder(orderId);
-      setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      
+      // If updatedOrder is a full order object, use it; otherwise merge status update
+      if (updatedOrder && updatedOrder.id) {
+        // Full order object returned
+        setOrders(orders.map(order => order.id === orderId ? updatedOrder : order));
+      } else if (updatedOrder && updatedOrder.status) {
+        // Only status returned, merge with existing order
+        setOrders(orders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: updatedOrder.status }
+            : order
+        ));
+      } else {
+        // Fallback: update status locally
+        setOrders(orders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'return_requested' }
+            : order
+        ));
+      }
       setNotice("Return request submitted successfully");
     } catch (err) {
       setError(err.message);

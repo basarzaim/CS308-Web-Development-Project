@@ -6,6 +6,7 @@ from rest_framework.views import APIView    # 🔹 EK
 from rest_framework.response import Response  # 🔹 EK
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from django.shortcuts import get_object_or_404
+from decimal import Decimal
 
 from .models import Product, Category
 from .serializers import ProductSerializer, CategorySerializer
@@ -109,6 +110,16 @@ class ProductViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         old_price = instance.price
         
+        # If price is being reduced and original_price is not set, set it to the old price
+        if 'price' in request.data:
+            new_price = Decimal(str(request.data['price']))
+            if new_price < old_price and instance.original_price is None:
+                # Price is being reduced (discount applied), set original_price
+                request.data['original_price'] = str(old_price)
+            elif new_price >= old_price and instance.original_price:
+                # Price is being increased back to or above original, clear original_price
+                request.data['original_price'] = None
+        
         # Perform the update
         response = super().update(request, *args, **kwargs)
         
@@ -121,7 +132,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             # - If price increases, that becomes the new baseline for discount detection
             # - If price decreases, we keep the original baseline so discounts can still be detected
             from wishlist.models import Wishlist
-            from decimal import Decimal
             
             wishlist_items = Wishlist.objects.filter(product=instance)
             for item in wishlist_items:
@@ -148,6 +158,16 @@ class ProductViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         old_price = instance.price
         
+        # If price is being reduced and original_price is not set, set it to the old price
+        if 'price' in request.data:
+            new_price = Decimal(str(request.data['price']))
+            if new_price < old_price and instance.original_price is None:
+                # Price is being reduced (discount applied), set original_price
+                request.data['original_price'] = str(old_price)
+            elif new_price >= old_price and instance.original_price:
+                # Price is being increased back to or above original, clear original_price
+                request.data['original_price'] = None
+        
         # Perform the update
         response = super().partial_update(request, *args, **kwargs)
         
@@ -160,7 +180,6 @@ class ProductViewSet(viewsets.ModelViewSet):
             # - If price increases, that becomes the new baseline for discount detection
             # - If price decreases, we keep the original baseline so discounts can still be detected
             from wishlist.models import Wishlist
-            from decimal import Decimal
             
             wishlist_items = Wishlist.objects.filter(product=instance)
             for item in wishlist_items:

@@ -560,8 +560,13 @@ class OrderCancelView(APIView):
             # Update order status to cancelled
             order.status = 'cancelled'
             order.save()
-
-        return Response({"message": "Order cancelled successfully. Stock has been restored."}, status=status.HTTP_200_OK)
+        
+        # Refresh the order from database to get all related data
+        order.refresh_from_db()
+        
+        # Return the full order object using serializer
+        serializer = OrderSerializer(order)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class OrderReturnView(APIView):

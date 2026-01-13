@@ -31,6 +31,24 @@ const CATEGORY_OPTIONS = [
   { slug: "photo_video", name: "Cameras & Photo" },
 ];
 
+// Backend ordering key map - moved outside component to prevent recreation
+const getBackendOrdering = (sortKey) => {
+  switch (sortKey) {
+    case "price-asc":
+      return "price";
+    case "price-desc":
+      return "-price";
+    case "rating-desc":
+      return "-rating_sort"; // Use rating_sort to put null ratings last
+    case "name-asc":
+      return "name";
+    case "name-desc":
+      return "-name";
+    default:
+      return ""; // featured durumu
+  }
+};
+
 export default function ProductList() {
   const { isAuthenticated } = useAuth();
   // UI state
@@ -50,24 +68,6 @@ export default function ProductList() {
   const [loading, setLoading] = useState(true);
   // Category product counts (fetched from API, merged with static list)
   const [categoryCounts, setCategoryCounts] = useState({});
-
-  // Backend ordering key map
-  const getBackendOrdering = (sortKey) => {
-    switch (sortKey) {
-      case "price-asc":
-        return "price";
-      case "price-desc":
-        return "-price";
-      case "rating-desc":
-        return "-rating_sort"; // Use rating_sort to put null ratings last
-      case "name-asc":
-        return "name";
-      case "name-desc":
-        return "-name";
-      default:
-        return ""; // featured durumu
-    }
-  };
 
   // Load wishlist on mount and when auth changes
   useEffect(() => {
@@ -115,12 +115,16 @@ export default function ProductList() {
     setLoading(true);
     setError(null);
 
+    // Ensure category is properly handled (empty string means no filter)
+    const categoryParam = category && category.trim() !== "" ? category : undefined;
+    const orderingParam = getBackendOrdering(sort);
+    
     const params = {
       page,
       page_size: pageSize, // DRF standard
-      search: debounced || undefined,
-      category: category || undefined,
-      ordering: getBackendOrdering(sort) || undefined,
+      ...(debounced && debounced.trim() !== "" && { search: debounced }),
+      ...(categoryParam && { category: categoryParam }),
+      ...(orderingParam && { ordering: orderingParam }),
     };
 
     getProducts(params)
@@ -272,7 +276,8 @@ export default function ProductList() {
                 className="pl-select"
                 value={category}
                 onChange={(e) => {
-                  setCategory(e.target.value);
+                  const newCategory = e.target.value;
+                  setCategory(newCategory);
                   setPage(1);
                 }}
               >

@@ -430,6 +430,7 @@ function ProductManagement({ products, loading, error, onDeleteProduct, onUpdate
       const { createProduct } = await import("../api/products");
       await createProduct(productData);
       setShowAddForm(false);
+      setAddError("");
       onRefresh();
     } catch (err) {
       setAddError(err.message || "Failed to create product");
@@ -533,6 +534,8 @@ function AddProductForm({ onClose, onAdd, loading, error }) {
     distributor: "",
     category: "",
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
@@ -551,38 +554,72 @@ function AddProductForm({ onClose, onAdd, loading, error }) {
     loadCategories();
   }, []);
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert("Please select an image file");
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size must be less than 5MB");
+        return;
+      }
+      setImageFile(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const productData = {
-      name: formData.name.trim(),
-      price: parseFloat(formData.price),
-      stock: parseInt(formData.stock) || 0,
-      warranty: parseInt(formData.warranty) || 0,
-      description: formData.description.trim() || null,
-      model: formData.model.trim() || "",
-      serial_number: formData.serial_number.trim() || null,
-      distributor: formData.distributor.trim() || "",
-    };
-
-    if (formData.category) {
-      const categoryId = parseInt(formData.category);
-      if (!isNaN(categoryId)) {
-        productData.category = categoryId;
-      }
-    }
-
-    if (!productData.name) {
+    if (!formData.name.trim()) {
       alert("Product name is required");
       return;
     }
 
-    if (!productData.price || productData.price <= 0) {
+    if (!formData.price || parseFloat(formData.price) <= 0) {
       alert("Valid price is required");
       return;
     }
 
-    await onAdd(productData);
+    // Create FormData for file upload
+    const formDataToSend = new FormData();
+    formDataToSend.append('name', formData.name.trim());
+    formDataToSend.append('price', parseFloat(formData.price));
+    formDataToSend.append('stock', parseInt(formData.stock) || 0);
+    formDataToSend.append('warranty', parseInt(formData.warranty) || 0);
+    
+    if (formData.description.trim()) {
+      formDataToSend.append('description', formData.description.trim());
+    }
+    if (formData.model.trim()) {
+      formDataToSend.append('model', formData.model.trim());
+    }
+    if (formData.serial_number.trim()) {
+      formDataToSend.append('serial_number', formData.serial_number.trim());
+    }
+    if (formData.distributor.trim()) {
+      formDataToSend.append('distributor', formData.distributor.trim());
+    }
+    if (formData.category) {
+      const categoryId = parseInt(formData.category);
+      if (!isNaN(categoryId)) {
+        formDataToSend.append('category', categoryId);
+      }
+    }
+    if (imageFile) {
+      formDataToSend.append('image', imageFile);
+    }
+
+    await onAdd(formDataToSend);
   };
 
   return (
@@ -705,6 +742,31 @@ function AddProductForm({ onClose, onAdd, loading, error }) {
               onChange={(e) => setFormData({ ...formData, distributor: e.target.value })}
               placeholder="Distributor name"
             />
+          </div>
+
+          <div className="pm-form-group">
+            <label>Product Image</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              className="pm-file-input"
+            />
+            {imagePreview && (
+              <div className="pm-image-preview">
+                <img src={imagePreview} alt="Preview" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageFile(null);
+                    setImagePreview(null);
+                  }}
+                  className="pm-remove-image-btn"
+                >
+                  Remove Image
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="pm-form-actions">

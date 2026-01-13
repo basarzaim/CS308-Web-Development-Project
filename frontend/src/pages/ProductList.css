@@ -267,6 +267,12 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  align-items: flex-start;
+  position: relative;
+}
+
+.pl-price-container .pl-price {
+  margin: 0;
 }
 
 .pl-price-original {

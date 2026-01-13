@@ -78,6 +78,8 @@ export async function fetchProductById(id) {
 // Product Management Functions
 export async function createProduct(productData) {
   try {
+    // If productData is FormData, axios will automatically set Content-Type to multipart/form-data
+    // No need to manually set headers - axios handles it
     const { data } = await api.post("/products/", productData);
     return data;
   } catch (error) {
