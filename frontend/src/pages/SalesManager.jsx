@@ -403,6 +403,8 @@ function DiscountManagement() {
           // This preserves the original price before discount
           const updateData = {
             price: newPrice,
+            is_on_sale: true,
+            discount_percentage: numericDiscount,
           };
           // Only set original_price if it's not already set (preserve existing original_price)
           if (!product.original_price) {
@@ -431,6 +433,47 @@ function DiscountManagement() {
       setError(
         err.message ||
           "Failed to apply discount. Please try again."
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleRevertSale(productId, originalPrice) {
+    if (!originalPrice) {
+      setError("No original price available to revert to.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setNotice("");
+
+    try {
+      const { api } = await import("../api/client");
+
+      // Revert to original price and clear sale flags
+      await api.patch(`/products/${productId}/`, {
+        price: originalPrice,
+        original_price: null,
+        is_on_sale: false,
+        discount_percentage: 0,
+      });
+
+      setNotice("Sale reverted. Product returned to original price.");
+      setTimeout(() => setNotice(""), 4000);
+
+      // Refresh list with updated prices
+      const { items } = await fetchProducts({
+        page: 1,
+        limit: 200,
+        sort: "",
+      });
+      setProducts(Array.isArray(items) ? items : []);
+    } catch (err) {
+      setError(
+        err.message ||
+          "Failed to revert sale. Please try again."
       );
     } finally {
       setSaving(false);
@@ -507,13 +550,18 @@ function DiscountManagement() {
                 </th>
                 <th>Product</th>
                 <th>Category</th>
+                <th>On Sale</th>
+                <th>Original price</th>
                 <th>Current price</th>
                 <th>New price (preview)</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {products.map((p) => {
                 const price = Number(p.price ?? 0);
+                const originalPrice = p.original_price ? Number(p.original_price) : null;
+                const isOnSale = p.is_on_sale || (originalPrice && originalPrice > price);
                 const selected = selectedIds.has(p.id);
                 const preview = isDiscountValid
                   ? price - (price * numericDiscount) / 100
@@ -539,7 +587,21 @@ function DiscountManagement() {
                         <span>{p.name}</span>
                       </div>
                     </td>
-                    <td>{p.category || "—"}</td>
+                    <td>{p.category_name || p.category || "—"}</td>
+                    <td>
+                      {isOnSale ? (
+                        <span style={{ color: "#10b981", fontWeight: "600" }}>✓ Yes</span>
+                      ) : (
+                        <span className="sm-muted">No</span>
+                      )}
+                    </td>
+                    <td>
+                      {originalPrice ? (
+                        <span>${originalPrice.toFixed(2)}</span>
+                      ) : (
+                        <span className="sm-muted">—</span>
+                      )}
+                    </td>
                     <td>${price.toFixed(2)}</td>
                     <td>
                       {preview != null ? (
@@ -548,6 +610,18 @@ function DiscountManagement() {
                         </span>
                       ) : (
                         <span className="sm-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {isOnSale && (
+                        <button
+                          type="button"
+                          className="sm-secondary-btn sm-small-btn"
+                          onClick={() => handleRevertSale(p.id, originalPrice)}
+                          title="Revert to original price"
+                        >
+                          Revert Sale
+                        </button>
                       )}
                     </td>
                   </tr>
