@@ -24,6 +24,16 @@ def send_wishlist_discount_notification(wishlist_item, old_price, new_price):
             user = wishlist_item.user
             product = wishlist_item.product
             
+            # Check if user has an email address
+            if not user.email:
+                logger.warning(f"Cannot send wishlist discount notification: User {user.id} has no email address")
+                return
+            
+            # Check if email configuration is set up
+            if not settings.EMAIL_HOST_PASSWORD:
+                logger.warning(f"Email not configured (EMAIL_HOST_PASSWORD is empty). Cannot send wishlist discount notification for product {product.id}")
+                return
+            
             # Calculate discount percentage
             if wishlist_item.price_when_added:
                 original_price = Decimal(str(wishlist_item.price_when_added))
@@ -77,11 +87,14 @@ If you have any questions, contact us at support@cs308ecommerce.com
             )
             
             # Send email
-            email.send(fail_silently=True)
-            logger.info(f"Wishlist discount notification sent to {user.email} for product {product.id} ({product.name})")
+            result = email.send(fail_silently=True)
+            if result:
+                logger.info(f"Wishlist discount notification sent to {user.email} for product {product.id} ({product.name})")
+            else:
+                logger.error(f"Wishlist discount email failed to send to {user.email} for product {product.id} ({product.name}) (send() returned False)")
             
         except Exception as e:
-            logger.error(f"Failed to send wishlist discount email to {wishlist_item.user.email} for product {wishlist_item.product.id}: {str(e)}")
+            logger.error(f"Failed to send wishlist discount email to {wishlist_item.user.email if wishlist_item.user.email else 'NO_EMAIL'} for product {wishlist_item.product.id}: {str(e)}")
     
     # Send email in background thread so it doesn't block the response
     email_thread = threading.Thread(target=send_email_async)
@@ -103,10 +116,22 @@ def notify_wishlist_users_of_discount(product, old_price, new_price):
         
         # Only send notifications if price actually decreased
         if Decimal(str(new_price)) >= Decimal(str(old_price)):
+            logger.debug(f"Price did not decrease for product {product.id} (old: {old_price}, new: {new_price}), skipping notification")
             return
         
-        # Find all wishlist items for this product
-        wishlist_items = Wishlist.objects.filter(product=product).select_related('user', 'product')
+        # Find all wishlist items for this product, filtering for users with email addresses
+        wishlist_items = Wishlist.objects.filter(
+            product=product,
+            user__email__isnull=False
+        ).exclude(
+            user__email=''
+        ).select_related('user', 'product')
+        
+        if not wishlist_items.exists():
+            logger.debug(f"No wishlist items with valid email addresses found for product {product.id}")
+            return
+        
+        logger.info(f"Found {wishlist_items.count()} wishlist item(s) for product {product.id} with valid email addresses")
         
         for item in wishlist_items:
             # Check if there's actually a discount compared to when it was added
@@ -116,11 +141,17 @@ def notify_wishlist_users_of_discount(product, old_price, new_price):
                 
                 # Only send notification if new price is lower than when added to wishlist
                 if new_price_decimal < original_price:
+                    logger.info(f"Sending discount notification to user {item.user.id} ({item.user.email}) for product {product.id} (price dropped from {original_price} to {new_price_decimal})")
                     send_wishlist_discount_notification(item, old_price, new_price)
+                else:
+                    logger.debug(f"Skipping notification for user {item.user.id}: new price {new_price_decimal} is not lower than price_when_added {original_price}")
             else:
                 # If price_when_added is not set, use old_price as baseline
                 if Decimal(str(new_price)) < Decimal(str(old_price)):
+                    logger.info(f"Sending discount notification to user {item.user.id} ({item.user.email}) for product {product.id} (price_when_added not set, using old_price {old_price} as baseline)")
                     send_wishlist_discount_notification(item, old_price, new_price)
+                else:
+                    logger.debug(f"Skipping notification for user {item.user.id}: new price {new_price} is not lower than old_price {old_price}")
                     
     except Exception as e:
-        logger.error(f"Error notifying wishlist users of discount for product {product.id}: {str(e)}")
+        logger.error(f"Error notifying wishlist users of discount for product {product.id}: {str(e)}", exc_info=True)

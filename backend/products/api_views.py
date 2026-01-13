@@ -139,8 +139,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             wishlist_items = Wishlist.objects.filter(product=instance)
             for item in wishlist_items:
                 if item.price_when_added is None:
-                    # No baseline set, use new price
-                    item.price_when_added = instance.price
+                    # No baseline set, use old_price (before discount) as baseline if price decreased
+                    # Otherwise use new price. This allows the notification to detect the discount
+                    item.price_when_added = old_price if price_decreased else instance.price
                     item.save(update_fields=['price_when_added'])
                 elif Decimal(str(instance.price)) > Decimal(str(item.price_when_added)):
                     # New price is higher, update baseline
@@ -195,8 +196,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             wishlist_items = Wishlist.objects.filter(product=instance)
             for item in wishlist_items:
                 if item.price_when_added is None:
-                    # No baseline set, use new price
-                    item.price_when_added = instance.price
+                    # No baseline set, use old_price (before discount) as baseline if price decreased
+                    # Otherwise use new price. This allows the notification to detect the discount
+                    item.price_when_added = old_price if price_decreased else instance.price
                     item.save(update_fields=['price_when_added'])
                 elif Decimal(str(instance.price)) > Decimal(str(item.price_when_added)):
                     # New price is higher, update baseline
