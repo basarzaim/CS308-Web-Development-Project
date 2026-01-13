@@ -126,6 +126,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         # After update, check if price changed and update wishlist items
         instance.refresh_from_db()
         if 'price' in request.data and instance.price != old_price:
+            new_price = instance.price
+            price_decreased = Decimal(str(new_price)) < Decimal(str(old_price))
+            
             # Price was changed directly (not via discount)
             # Only update price_when_added if the new price is HIGHER than current price_when_added
             # This ensures that:
@@ -144,6 +147,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                     item.price_when_added = instance.price
                     item.save(update_fields=['price_when_added'])
                 # If new price is lower, keep original price_when_added for discount detection
+            
+            # Send email notifications if price decreased
+            if price_decreased:
+                from wishlist.email_notifications import notify_wishlist_users_of_discount
+                notify_wishlist_users_of_discount(instance, old_price, new_price)
         
         return response
 
@@ -174,6 +182,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         # After update, check if price changed and update wishlist items
         instance.refresh_from_db()
         if 'price' in request.data and instance.price != old_price:
+            new_price = instance.price
+            price_decreased = Decimal(str(new_price)) < Decimal(str(old_price))
+            
             # Price was changed directly (not via discount)
             # Only update price_when_added if the new price is HIGHER than current price_when_added
             # This ensures that:
@@ -192,6 +203,11 @@ class ProductViewSet(viewsets.ModelViewSet):
                     item.price_when_added = instance.price
                     item.save(update_fields=['price_when_added'])
                 # If new price is lower, keep original price_when_added for discount detection
+            
+            # Send email notifications if price decreased
+            if price_decreased:
+                from wishlist.email_notifications import notify_wishlist_users_of_discount
+                notify_wishlist_users_of_discount(instance, old_price, new_price)
         
         return response
 

@@ -287,8 +287,13 @@ export default function SupportDashboard() {
                   </div>
                   <div className="queue-item-meta">
                     <span>{conv.customer_email || "Anonymous"}</span>
-                    <span className="status-badge status-{conv.status}">{conv.status}</span>
+                    <span className={`status-badge status-${conv.status}`}>{conv.status}</span>
                   </div>
+                  {conv.status === "claimed" && conv.support_agent_name && (
+                    <div className="queue-item-claimed">
+                      Claimed by: {conv.support_agent_name}
+                    </div>
+                  )}
                   {conv.last_message_preview && (
                     <div className="queue-item-preview">{conv.last_message_preview}</div>
                   )}

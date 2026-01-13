@@ -39,9 +39,27 @@ const LiveChat = () => {
   // Poll for new messages when conversation is open
   useEffect(() => {
     if (isOpen && conversation) {
+      let refreshCounter = 0;
       // Poll every 3 seconds for new messages
       pollingIntervalRef.current = setInterval(() => {
         loadMessages();
+        // Also refresh conversation state every 5 polls (15 seconds) to catch status changes (like claiming)
+        refreshCounter++;
+        if (refreshCounter >= 5) {
+          refreshCounter = 0;
+          createConversation(
+            isAuthenticated ? user?.email : "",
+            isAuthenticated ? (user?.first_name || user?.username || "User") : "Guest"
+          ).then((updatedConv) => {
+            // Only update if conversation ID matches (same conversation)
+            if (updatedConv && updatedConv.id === conversation.id) {
+              setConversation(updatedConv);
+            }
+          }).catch((err) => {
+            // Silently fail - don't spam errors for polling
+            console.debug("Failed to refresh conversation during poll:", err);
+          });
+        }
       }, 3000);
       
       return () => {
@@ -50,7 +68,7 @@ const LiveChat = () => {
         }
       };
     }
-  }, [isOpen, conversation]);
+  }, [isOpen, conversation, isAuthenticated, user]);
 
   const initializeConversation = async () => {
     setIsLoading(true);
@@ -61,10 +79,11 @@ const LiveChat = () => {
         isAuthenticated ? user?.email : "",
         isAuthenticated ? (user?.first_name || user?.username || "User") : "Guest"
       );
+      // Always update conversation state, even if it was already claimed
       setConversation(conv);
       
-      // Load messages
-      await loadMessages();
+      // Load messages - pass conversation directly to avoid state timing issues
+      await loadMessages(conv);
     } catch (err) {
       console.error("Failed to initialize conversation:", err);
       setError(err.message || "Failed to start conversation");
@@ -73,11 +92,13 @@ const LiveChat = () => {
     }
   };
 
-  const loadMessages = async () => {
-    if (!conversation) return;
+  const loadMessages = async (convToLoad = null) => {
+    // Use passed conversation or fall back to state
+    const conv = convToLoad || conversation;
+    if (!conv) return;
     
     try {
-      const msgs = await fetchMessages(conversation.id);
+      const msgs = await fetchMessages(conv.id);
       setMessages(msgs);
       
       // Mark unread messages as read
@@ -103,6 +124,16 @@ const LiveChat = () => {
       }
     } catch (err) {
       console.error("Failed to load messages:", err);
+      // If loading messages fails, try to refresh the conversation
+      const currentConv = convToLoad || conversation;
+      if (currentConv && err.response?.status === 404) {
+        // Conversation might have been deleted or changed, try to reinitialize
+        try {
+          await initializeConversation();
+        } catch (initErr) {
+          console.error("Failed to reinitialize conversation:", initErr);
+        }
+      }
     }
   };
 
@@ -194,9 +225,30 @@ const LiveChat = () => {
 
       // Reload messages to get the new one
       await loadMessages();
+      
+      // Refresh conversation to get updated status (in case it was claimed)
+      try {
+        const updatedConv = await createConversation(
+          isAuthenticated ? user?.email : "",
+          isAuthenticated ? (user?.first_name || user?.username || "User") : "Guest"
+        );
+        setConversation(updatedConv);
+      } catch (refreshErr) {
+        // If refresh fails, continue with existing conversation
+        console.warn("Failed to refresh conversation:", refreshErr);
+      }
     } catch (err) {
       console.error("Failed to send message:", err);
       setError(err.message || "Failed to send message");
+      
+      // If sending fails due to conversation not found, try to reinitialize
+      if (err.response?.status === 404 || err.response?.status === 400) {
+        try {
+          await initializeConversation();
+        } catch (initErr) {
+          console.error("Failed to reinitialize conversation:", initErr);
+        }
+      }
     } finally {
       setIsSending(false);
     }

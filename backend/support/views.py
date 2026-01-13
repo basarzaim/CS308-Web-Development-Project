@@ -174,16 +174,38 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         conversation_id = self.request.query_params.get('conversation')
         if conversation_id:
+            # Filter by conversation when query parameter is provided (for list view)
             return Message.objects.filter(conversation_id=conversation_id).select_related(
                 'sender', 'conversation'
             ).prefetch_related('attachments').order_by('created_at')
-        return Message.objects.none()
+        # For detail actions (like mark_read), allow access to any message
+        # The permission checks will ensure users can only access their own messages
+        return Message.objects.all().select_related(
+            'sender', 'conversation'
+        ).prefetch_related('attachments')
     
     def perform_create(self, serializer):
         conversation_id = self.request.data.get('conversation')
         conversation = get_object_or_404(Conversation, id=conversation_id)
         
+        # If conversation is resolved or closed, reopen it when customer sends a new message
         user = self.request.user
+        is_customer = False
+        if user.is_authenticated:
+            is_customer = conversation.customer == user
+        else:
+            # For guest users, check if guest_email matches
+            guest_email = self.request.data.get('guest_email', '')
+            is_customer = conversation.guest_email == guest_email
+        
+        if is_customer and conversation.status in ['resolved', 'closed']:
+            # Reopen the conversation when customer sends a new message
+            conversation.status = 'open'
+            conversation.resolved_at = None  # Clear resolved timestamp
+            conversation.support_agent = None  # Unclaim it
+            conversation.claimed_at = None
+            conversation.save()
+        
         message = None
         if user.is_authenticated:
             message = serializer.save(
@@ -215,6 +237,31 @@ class MessageViewSet(viewsets.ModelViewSet):
     def mark_read(self, request, pk=None):
         """Mark message as read"""
         message = self.get_object()
+        
+        # Check permissions: only the message recipient (customer for support messages, support for customer messages) can mark as read
+        user = request.user
+        if not user.is_authenticated:
+            return Response(
+                {"detail": "Authentication required."},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+        
+        # Support agents can mark any message as read
+        # Customers can only mark support messages as read (messages from support agents)
+        if user.role != 'Support Agent' and not user.is_staff:
+            # Customer can only mark support messages as read
+            if not message.is_from_support:
+                return Response(
+                    {"detail": "You can only mark support messages as read."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            # Also check if this message belongs to a conversation the customer owns
+            if message.conversation.customer != user and message.conversation.guest_email != (request.data.get('guest_email', '')):
+                return Response(
+                    {"detail": "You can only mark messages from your own conversations as read."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        
         message.read_at = timezone.now()
         message.save()
         return Response({"status": "marked as read"})
@@ -228,16 +275,17 @@ class ConversationQueueView(APIView):
     
     def get(self, request):
         try:
-            # Get all open conversations (not claimed, not resolved, not closed)
-            open_conversations = Conversation.objects.filter(
-                status='open'
+            # Get all open and claimed conversations (not resolved, not closed)
+            # Show both unclaimed (open) and claimed conversations so agents can see their claimed conversations
+            active_conversations = Conversation.objects.filter(
+                status__in=['open', 'claimed']
             ).prefetch_related(
                 'messages', 'messages__attachments', 'customer', 'support_agent'
             ).select_related('customer', 'support_agent').annotate(
                 message_count=Count('messages')
-            ).order_by('-created_at')
+            ).order_by('-updated_at')  # Order by updated_at to show most recently active first
             
-            serializer = ConversationListSerializer(open_conversations, many=True, context={'request': request})
+            serializer = ConversationListSerializer(active_conversations, many=True, context={'request': request})
             return Response(serializer.data)
         except Exception as e:
             import traceback
@@ -259,14 +307,32 @@ class CustomerConversationCreateView(APIView):
             user = request.user
             
             if user.is_authenticated:
-                # Check if user already has an open conversation
-                existing = Conversation.objects.filter(
+                # Check if user already has an open or claimed conversation
+                existing_open = Conversation.objects.filter(
                     customer=user,
                     status__in=['open', 'claimed']
                 ).prefetch_related('messages', 'messages__attachments').first()
                 
-                if existing:
-                    serializer = ConversationSerializer(existing, context={'request': request})
+                if existing_open:
+                    serializer = ConversationSerializer(existing_open, context={'request': request})
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                
+                # Check if user has a resolved/closed conversation - reopen it instead of creating new
+                existing_resolved = Conversation.objects.filter(
+                    customer=user,
+                    status__in=['resolved', 'closed']
+                ).order_by('-updated_at').first()
+                
+                if existing_resolved:
+                    # Reopen the conversation
+                    existing_resolved.status = 'open'
+                    existing_resolved.resolved_at = None
+                    existing_resolved.support_agent = None  # Unclaim it
+                    existing_resolved.claimed_at = None
+                    existing_resolved.save()
+                    existing_resolved.refresh_from_db()
+                    existing_resolved.prefetch_related('messages', 'messages__attachments')
+                    serializer = ConversationSerializer(existing_resolved, context={'request': request})
                     return Response(serializer.data, status=status.HTTP_200_OK)
                 
                 conversation = Conversation.objects.create(customer=user, status='open')
@@ -274,6 +340,34 @@ class CustomerConversationCreateView(APIView):
                 # Guest user
                 guest_email = request.data.get('guest_email', '')
                 guest_name = request.data.get('guest_name', 'Guest')
+                
+                # Check if guest already has an open or claimed conversation
+                existing_open = Conversation.objects.filter(
+                    guest_email=guest_email,
+                    status__in=['open', 'claimed']
+                ).prefetch_related('messages', 'messages__attachments').first()
+                
+                if existing_open:
+                    serializer = ConversationSerializer(existing_open, context={'request': request})
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                
+                # Check if guest has a resolved/closed conversation - reopen it
+                existing_resolved = Conversation.objects.filter(
+                    guest_email=guest_email,
+                    status__in=['resolved', 'closed']
+                ).order_by('-updated_at').first()
+                
+                if existing_resolved:
+                    # Reopen the conversation
+                    existing_resolved.status = 'open'
+                    existing_resolved.resolved_at = None
+                    existing_resolved.support_agent = None  # Unclaim it
+                    existing_resolved.claimed_at = None
+                    existing_resolved.save()
+                    existing_resolved.refresh_from_db()
+                    existing_resolved.prefetch_related('messages', 'messages__attachments')
+                    serializer = ConversationSerializer(existing_resolved, context={'request': request})
+                    return Response(serializer.data, status=status.HTTP_200_OK)
                 
                 conversation = Conversation.objects.create(
                     guest_email=guest_email,

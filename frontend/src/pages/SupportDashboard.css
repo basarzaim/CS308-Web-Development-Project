@@ -131,6 +131,14 @@
   color: #856404;
 }
 
+.queue-item-claimed {
+  font-size: 0.75rem;
+  color: #0066ff;
+  font-weight: 500;
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+
 .status-claimed {
   background: #d1ecf1;
   color: #0c5460;

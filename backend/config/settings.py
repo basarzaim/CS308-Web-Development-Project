@@ -37,6 +37,9 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
 ]
 
+# Frontend URL for email links
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
