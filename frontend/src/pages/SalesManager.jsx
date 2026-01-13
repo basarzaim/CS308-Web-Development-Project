@@ -50,8 +50,20 @@ export default function SalesManager() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [ordersError, setOrdersError] = useState("");
 
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  // Set default date range to last 30 days
+  const getDefaultDates = () => {
+    const today = new Date();
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(today.getDate() - 30);
+    return {
+      from: thirtyDaysAgo.toISOString().split('T')[0],
+      to: today.toISOString().split('T')[0]
+    };
+  };
+
+  const defaultDates = getDefaultDates();
+  const [fromDate, setFromDate] = useState(defaultDates.from);
+  const [toDate, setToDate] = useState(defaultDates.to);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated && isSalesManager(user)) {
@@ -1109,47 +1121,88 @@ function RevenueSection({
           </div>
 
           {chartData.length === 0 ? (
-            <p className="sm-muted">
-              No chart data available for the selected period.
-            </p>
+            <div className="sm-chart-empty">
+              <p className="sm-muted" style={{ textAlign: 'center', padding: '40px 20px' }}>
+                No orders found in the selected date range ({fromDate} to {toDate}).
+                <br />
+                Try adjusting the date filters above to see chart data.
+              </p>
+            </div>
           ) : (
             <div className="sm-chart">
-              <div className="sm-chart-body">
-                {chartData.map((row) => (
-                  <div key={row.date} className="sm-chart-column">
-                    <div className="sm-chart-bars">
-                      <div
-                        className="sm-chart-bar sm-chart-bar-revenue"
-                        style={{
-                          height: `${row.revenueHeight}%`,
-                        }}
-                        title={`Revenue: $${row.revenue.toFixed(
-                          2
-                        )}`}
-                      />
-                      <div
-                        className="sm-chart-bar sm-chart-bar-profit"
-                        style={{
-                          height: `${row.profitHeight}%`,
-                        }}
-                        title={`Profit: $${row.profit.toFixed(2)}`}
-                      />
-                    </div>
-                    <span className="sm-chart-label">
-                      {row.date}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="sm-chart-legend">
-                <span className="sm-legend-item">
-                  <span className="sm-legend-dot sm-legend-dot-revenue" />
-                  Revenue
-                </span>
-                <span className="sm-legend-item">
-                  <span className="sm-legend-dot sm-legend-dot-profit" />
-                  Profit
-                </span>
+              <h3 style={{ fontSize: '0.95rem', marginBottom: '12px', color: '#374151' }}>
+                Revenue Distribution (Pie Chart)
+              </h3>
+              <div className="sm-pie-chart-container">
+                <svg viewBox="0 0 200 200" className="sm-pie-chart">
+                  {(() => {
+                    const total = chartData.reduce((sum, row) => sum + row.revenue, 0);
+                    let currentAngle = 0;
+                    const colors = [
+                      '#4f46e5', '#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd',
+                      '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+                      '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#d946ef'
+                    ];
+
+                    return chartData.map((row, index) => {
+                      const percentage = (row.revenue / total) * 100;
+                      const angle = (row.revenue / total) * 360;
+                      const startAngle = currentAngle;
+                      const endAngle = currentAngle + angle;
+                      currentAngle = endAngle;
+
+                      // Convert angles to radians
+                      const startRad = (startAngle - 90) * Math.PI / 180;
+                      const endRad = (endAngle - 90) * Math.PI / 180;
+
+                      // Calculate path
+                      const x1 = 100 + 90 * Math.cos(startRad);
+                      const y1 = 100 + 90 * Math.sin(startRad);
+                      const x2 = 100 + 90 * Math.cos(endRad);
+                      const y2 = 100 + 90 * Math.sin(endRad);
+
+                      const largeArc = angle > 180 ? 1 : 0;
+
+                      const path = `M 100 100 L ${x1} ${y1} A 90 90 0 ${largeArc} 1 ${x2} ${y2} Z`;
+
+                      return (
+                        <g key={row.date}>
+                          <path
+                            d={path}
+                            fill={colors[index % colors.length]}
+                            stroke="#fff"
+                            strokeWidth="2"
+                          >
+                            <title>{row.date}: ${row.revenue.toFixed(2)} ({percentage.toFixed(1)}%)</title>
+                          </path>
+                        </g>
+                      );
+                    });
+                  })()}
+                </svg>
+                <div className="sm-pie-legend">
+                  {chartData.map((row, index) => {
+                    const total = chartData.reduce((sum, r) => sum + r.revenue, 0);
+                    const percentage = (row.revenue / total) * 100;
+                    const colors = [
+                      '#4f46e5', '#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd',
+                      '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9',
+                      '#f59e0b', '#f97316', '#ef4444', '#ec4899', '#d946ef'
+                    ];
+
+                    return (
+                      <div key={row.date} className="sm-pie-legend-item">
+                        <span
+                          className="sm-pie-legend-dot"
+                          style={{ backgroundColor: colors[index % colors.length] }}
+                        />
+                        <span className="sm-pie-legend-label">
+                          {row.date}: ${row.revenue.toFixed(2)} ({percentage.toFixed(1)}%)
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           )}

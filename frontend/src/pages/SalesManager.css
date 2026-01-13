@@ -243,75 +243,77 @@
 
 .sm-chart {
   margin-top: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
 }
 
-.sm-chart-body {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
+.sm-chart-empty {
+  margin-top: 16px;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
   min-height: 160px;
-  padding: 8px 4px 0;
-  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.sm-chart-column {
+.sm-pie-chart-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  flex: 0 0 auto;
+  gap: 20px;
+  padding: 20px 0;
 }
 
-.sm-chart-bars {
+.sm-pie-chart {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.sm-pie-chart path {
+  transition: opacity 0.2s;
+  cursor: pointer;
+}
+
+.sm-pie-chart path:hover {
+  opacity: 0.8;
+}
+
+.sm-pie-legend {
   display: flex;
-  gap: 4px;
-  align-items: flex-end;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  max-width: 500px;
 }
 
-.sm-chart-bar {
-  width: 12px;
-  border-radius: 999px 999px 0 0;
-}
-
-.sm-chart-bar-revenue {
-  background: #4f46e5;
-}
-
-.sm-chart-bar-profit {
-  background: #22c55e;
-}
-
-.sm-chart-label {
-  font-size: 0.7rem;
-  color: #6b7280;
-}
-
-.sm-chart-legend {
+.sm-pie-legend-item {
   display: flex;
-  gap: 16px;
-  margin-top: 8px;
-  font-size: 0.8rem;
-  color: #4b5563;
-}
-
-.sm-legend-item {
-  display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  padding: 6px 10px;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  border: 1px solid #e5e7eb;
 }
 
-.sm-legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
+.sm-pie-legend-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
 }
 
-.sm-legend-dot-revenue {
-  background: #4f46e5;
-}
-
-.sm-legend-dot-profit {
-  background: #22c55e;
+.sm-pie-legend-label {
+  color: #374151;
+  font-weight: 500;
 }
 
 .sm-print-area {

@@ -901,6 +901,13 @@
   cursor: not-allowed;
 }
 
+/* Total price styling in delivery table */
+.pm-total-price {
+  font-weight: 600;
+  color: #28a745;
+  font-size: 0.95rem;
+}
+
 @media (max-width: 768px) {
   .pm-form-row {
     grid-template-columns: 1fr;

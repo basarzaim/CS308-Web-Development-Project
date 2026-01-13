@@ -214,6 +214,16 @@ export default function Profile() {
                 </label>
 
                 <label>
+                  Customer ID
+                  <input
+                    type="text"
+                    value={user?.id || "N/A"}
+                    disabled
+                    style={{ background: '#f3f4f6', cursor: 'not-allowed' }}
+                  />
+                </label>
+
+                <label>
                   Tax ID
                   <input
                     type="text"
@@ -271,6 +281,12 @@ export default function Profile() {
                   <span className="info-label">Phone:</span>
                   <span className="info-value">
                     {user?.phone && user.phone.trim() !== "" ? user.phone : "Not set"}
+                  </span>
+                </div>
+                <div className="info-row">
+                  <span className="info-label">Customer ID:</span>
+                  <span className="info-value">
+                    {user?.id || "N/A"}
                   </span>
                 </div>
                 <div className="info-row">

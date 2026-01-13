@@ -846,6 +846,7 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                 <th>Customer ID</th>
                 <th>Product ID</th>
                 <th>Quantity</th>
+                <th>Total Price</th>
                 <th>Delivery Status</th>
                 <th>Shipping Address</th>
                 <th>Order Date</th>
@@ -858,7 +859,15 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                 const status = (delivery.status || "").toLowerCase();
                 const isCompleted = status === "delivered" || delivery.is_delivery_completed === true;
                 const items = delivery.items || [];
-                
+
+                // Calculate total price for the order
+                const totalPrice = Number(
+                  delivery.discounted_total_price ??
+                  delivery.total_price ??
+                  delivery.total ??
+                  0
+                );
+
                 // If order has multiple items, create a row for each item
                 if (items.length > 0) {
                   return items.map((item, itemIndex) => (
@@ -877,6 +886,9 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                       <td className="pm-quantity">{item.quantity || 0}</td>
                       {itemIndex === 0 && (
                         <>
+                          <td rowSpan={items.length} className="pm-total-price">
+                            ${totalPrice.toFixed(2)}
+                          </td>
                           <td rowSpan={items.length} className={`pm-delivery-status ${isCompleted ? 'completed' : 'not-completed'}`}>
                             <span className={`pm-status-badge ${isCompleted ? 'completed' : 'not-completed'}`}>
                               {isCompleted ? "✓ Completed" : "✗ Not Completed"}
@@ -889,8 +901,8 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                             {delivery.created_at ? new Date(delivery.created_at).toLocaleDateString() : "N/A"}
                           </td>
                           <td rowSpan={items.length} className="pm-delivery-time">
-                            {delivery.delivered_at 
-                              ? new Date(delivery.delivered_at).toLocaleString() 
+                            {delivery.delivered_at
+                              ? new Date(delivery.delivered_at).toLocaleString()
                               : "Not Delivered"}
                           </td>
                         </>
@@ -905,6 +917,7 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                       <td>{delivery.user_id || delivery.user?.id || delivery.user || "N/A"}</td>
                       <td>N/A</td>
                       <td>0</td>
+                      <td className="pm-total-price">${totalPrice.toFixed(2)}</td>
                       <td className={`pm-delivery-status ${isCompleted ? 'completed' : 'not-completed'}`}>
                         <span className={`pm-status-badge ${isCompleted ? 'completed' : 'not-completed'}`}>
                           {isCompleted ? "✓ Completed" : "✗ Not Completed"}
@@ -913,8 +926,8 @@ function DeliveryLists({ deliveries, loading, error, onRefresh }) {
                       <td>{delivery.shipping_address || "N/A"}</td>
                       <td>{delivery.created_at ? new Date(delivery.created_at).toLocaleDateString() : "N/A"}</td>
                       <td className="pm-delivery-time">
-                        {delivery.delivered_at 
-                          ? new Date(delivery.delivered_at).toLocaleString() 
+                        {delivery.delivered_at
+                          ? new Date(delivery.delivered_at).toLocaleString()
                           : "Not Delivered"}
                       </td>
                     </tr>
