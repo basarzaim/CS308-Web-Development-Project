@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { isAdmin, isProductManager, isSalesManager, isSupportAgent } from "./utils/admin";
 import { getCartCount } from "./stores/cart";
 import { getWishlistCount } from "./stores/wishlist";
+import { ToastProvider } from "./components/ToastContainer";
+import WishlistSaleNotification from "./components/WishlistSaleNotification";
 
 // Pages
 import ProductList from "./pages/ProductList.jsx";

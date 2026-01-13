@@ -39,6 +39,18 @@ class Product(models.Model):
         db_index=True,
     )
 
+    # Discount fields
+    discount_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Discount percentage (0-100)"
+    )
+    is_on_sale = models.BooleanField(
+        default=False,
+        help_text="Is product currently on sale"
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=['category']),

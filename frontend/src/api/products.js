@@ -110,6 +110,16 @@ export async function updateProduct(productId, updates) {
   return data;
 }
 
+export async function updateProductStock(productId, newStock) {
+  const numericId = Number(productId);
+  if (!Number.isFinite(numericId)) {
+    throw new Error("Invalid product ID");
+  }
+
+  const { data } = await api.patch(`/products/${numericId}/`, { stock: newStock });
+  return data;
+}
+
 // Category Management Functions
 export async function createCategory(categoryData) {
   try {
