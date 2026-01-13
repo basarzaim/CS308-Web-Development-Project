@@ -21,7 +21,14 @@
       "Bash(python -m json.tool:*)",
       "Bash(python manage.py createsuperuser:*)",
       "Bash(python manage.py check:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(git commit:*)",
+      "Bash(git merge:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout /t 3)",
+      "Bash(dir:*)",
+      "Bash(timeout 5 cat:*)",
+      "Bash(git push:*)"
     ],
     "deny": [],
     "ask": []
