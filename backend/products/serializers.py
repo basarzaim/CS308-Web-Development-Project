@@ -6,11 +6,11 @@ class ProductSerializer(serializers.ModelSerializer):
     category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
     category_slug = serializers.CharField(source='category.slug', read_only=True, allow_null=True)
     has_discount = serializers.SerializerMethodField()
-    discount_percentage = serializers.SerializerMethodField()
+    discounted_price = serializers.SerializerMethodField()
 
     class Meta:
         model = Product
-        fields = ["id", "name", "price", "original_price", "stock", "warranty", "description", "rating", "image", "category", "category_name", "category_slug", "model", "serial_number", "distributor", "has_discount", "discount_percentage"]
+        fields = ["id", "name", "price", "original_price", "stock", "warranty", "description", "rating", "image", "category", "category_name", "category_slug", "model", "serial_number", "distributor", "has_discount", "discount_percentage", "is_on_sale", "discounted_price"]
 
     def get_fields(self):
         """Dynamically exclude category field for partial updates"""
@@ -36,18 +36,12 @@ class ProductSerializer(serializers.ModelSerializer):
         except (ValueError, TypeError):
             return False
     
-    def get_discount_percentage(self, obj):
-        """Calculate discount percentage if product is discounted"""
-        if not self.get_has_discount(obj):
-            return None
+    def get_discounted_price(self, obj):
+        """Get the discounted price from the model method"""
         try:
-            from decimal import Decimal
-            if obj.original_price == 0:
-                return None
-            discount_pct = ((obj.original_price - obj.price) / obj.original_price) * Decimal("100")
-            return round(float(discount_pct), 1)
-        except (ValueError, TypeError, ZeroDivisionError):
-            return None
+            return float(obj.get_discounted_price())
+        except (ValueError, TypeError, AttributeError):
+            return float(obj.price)
 
     def to_representation(self, instance):
         """Round rating to 1 decimal place"""

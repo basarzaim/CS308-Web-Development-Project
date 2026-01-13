@@ -12,13 +12,35 @@ function ensureMockList(store, productId) {
 }
 
 function extractMessage(error, fallback = "Operation failed") {
-  return (
-    error?.response?.data?.detail ||
-    error?.response?.data?.message ||
-    Array.isArray(error?.response?.data) && error.response.data[0] ||
-    error?.message ||
-    fallback
-  );
+  // Handle Django REST Framework validation errors
+  if (error?.response?.data) {
+    const data = error.response.data;
+
+    // Check for 'error' field (our custom ValidationError format)
+    if (data.error) return data.error;
+
+    // Check for 'detail' field (DRF default)
+    if (data.detail) return data.detail;
+
+    // Check for 'message' field
+    if (data.message) return data.message;
+
+    // Check for array format
+    if (Array.isArray(data) && data[0]) return data[0];
+
+    // Check for field-specific errors (e.g., {body: ["This field is required"]})
+    if (typeof data === 'object') {
+      const firstKey = Object.keys(data)[0];
+      if (firstKey && Array.isArray(data[firstKey])) {
+        return data[firstKey][0];
+      }
+      if (firstKey && typeof data[firstKey] === 'string') {
+        return data[firstKey];
+      }
+    }
+  }
+
+  return error?.message || fallback;
 }
 
 export async function fetchProductComments(productId) {

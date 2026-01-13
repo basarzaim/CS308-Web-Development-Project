@@ -371,27 +371,23 @@ export default function ProductList() {
                           {p.name}
                         </h3>
                         <div className="pl-meta">
-                          <div className="pl-price-container">
-                            {p.has_discount && p.original_price ? (
-                              <>
-                                <span className="pl-price-original">
-                                  ${Number(p.original_price || 0).toFixed(2)}
-                                </span>
-                                <span className="pl-price-discounted">
-                                  ${Number(p.price || 0).toFixed(2)}
-                                </span>
-                                {p.discount_percentage && (
-                                  <span className="pl-discount-badge">
-                                    -{p.discount_percentage}%
-                                  </span>
-                                )}
-                              </>
-                            ) : (
-                              <span className="pl-price">
+                          {p.is_on_sale ? (
+                            <div className="pl-price-container">
+                              <span className="pl-price-original">
                                 ${Number(p.price || 0).toFixed(2)}
                               </span>
-                            )}
-                          </div>
+                              <span className="pl-price-sale">
+                                ${Number(p.discounted_price || 0).toFixed(2)}
+                              </span>
+                              <span className="pl-discount-badge">
+                                {p.discount_percentage}% OFF
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="pl-price">
+                              ${Number(p.price || 0).toFixed(2)}
+                            </span>
+                          )}
                           {p.rating != null && (
                             <span className="pl-rating">⭐ {p.rating}</span>
                           )}

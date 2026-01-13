@@ -10,6 +10,7 @@ import {
   clearCart,
 } from "../stores/cart";
 import { useAuth } from "../context/AuthContext";
+import PaymentForm from "../components/PaymentForm";
 import "./Checkout.css";
 
 const INITIAL_FORM = {

@@ -13,6 +13,7 @@ from .views import (
     admin_update_order_status,
     SendInvoiceView,
     DownloadInvoiceView,
+    SalesAnalyticsView,
 )
 
 urlpatterns = [
@@ -37,5 +38,6 @@ urlpatterns = [
     path("<int:pk>/approve-return/", ApproveReturnView.as_view(), name="approve-return"),
     path("<int:pk>/deny-return/", DenyReturnView.as_view(), name="deny-return"),
 
-
+    # Sales Manager Analytics (Requirement #11)
+    path("analytics/", SalesAnalyticsView.as_view(), name="sales-analytics"),
 ]

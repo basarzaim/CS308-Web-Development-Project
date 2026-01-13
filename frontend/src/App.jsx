@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { isAdmin, isProductManager, isSalesManager, isSupportAgent } from "./utils/admin";
 import { getCartCount } from "./stores/cart";
 import { getWishlistCount } from "./stores/wishlist";
+import { ToastProvider } from "./components/ToastContainer";
+import WishlistSaleNotification from "./components/WishlistSaleNotification";
 
 // Pages
 import ProductList from "./pages/ProductList.jsx";
@@ -16,7 +18,11 @@ import Orders from "./pages/Orders.jsx";
 import Profile from "./pages/Profile.jsx";
 import CommentModeration from "./pages/CommentModeration.jsx";
 import AdminOrders from "./pages/AdminOrders.jsx";
+import StockManager from "./pages/StockManager.jsx";
 import Wishlist from "./pages/Wishlist.jsx";
+import AgentDashboard from "./pages/AgentDashboard.jsx";
+import SalesAnalytics from "./pages/SalesAnalytics.jsx";
+import DiscountManager from "./pages/DiscountManager.jsx";
 import LiveChat from "./components/LiveChat.jsx";
 import SalesManager from "./pages/SalesManager.jsx";
 import ProductManager from "./pages/ProductManager.jsx";
@@ -403,7 +409,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Navigation />
+        <ToastProvider>
+          <Navigation />
 
         <Routes>
           <Route path="/" element={<Navigate to="/products" replace />} />
@@ -423,7 +430,9 @@ export default function App() {
           <Route path="*" element={<div style={{ padding: 24 }}>404</div>} />
         </Routes>
 
-        <LiveChat />
+          <LiveChat />
+          <WishlistSaleNotification />
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -324,6 +324,12 @@
   padding: 4px 8px;
   font-size: 0.8rem;
   min-width: auto;
+  white-space: nowrap;
+}
+
+/* Actions column styling */
+.sm-table td:last-child {
+  min-width: 100px;
 }
 
 @media print {

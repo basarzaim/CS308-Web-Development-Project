@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from .api_views import ProductViewSet, CategoryListAPIView
 from .auth_views import RegisterView
+from .views import ApplyProductDiscountView, RemoveProductDiscountView
 
 
 router = DefaultRouter()
@@ -17,6 +18,10 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view(), name="register"),
     path("auth/login/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+
+    # Sales Manager Discount Management (Requirement #11)
+    path("discount/apply/", ApplyProductDiscountView.as_view(), name="apply-discount"),
+    path("discount/remove/", RemoveProductDiscountView.as_view(), name="remove-discount"),
 
     # Router MUST be last
     path("", include(router.urls)),

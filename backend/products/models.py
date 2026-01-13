@@ -46,6 +46,18 @@ class Product(models.Model):
         db_index=True,
     )
 
+    # Discount fields
+    discount_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Discount percentage (0-100)"
+    )
+    is_on_sale = models.BooleanField(
+        default=False,
+        help_text="Is product currently on sale"
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=['category']),
@@ -56,3 +68,16 @@ class Product(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_discounted_price(self):
+        """Calculate price after discount"""
+        if self.is_on_sale and self.discount_percentage > 0:
+            discount_amount = (self.price * self.discount_percentage) / 100
+            return self.price - discount_amount
+        return self.price
+
+    def get_savings(self):
+        """Calculate amount saved with discount"""
+        if self.is_on_sale and self.discount_percentage > 0:
+            return (self.price * self.discount_percentage) / 100
+        return 0

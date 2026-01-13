@@ -262,10 +262,11 @@
 .pl-meta { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #4DA6FF; }
 .pl-price { font-weight: 700; color: #0066FF; font-size: 14px; }
 
+/* Discount pricing */
 .pl-price-container {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   align-items: flex-start;
   position: relative;
 }
@@ -276,25 +277,28 @@
 
 .pl-price-original {
   font-size: 12px;
-  color: #999;
+  color: #94a3b8;
   text-decoration: line-through;
-  font-weight: 400;
+  font-weight: 500;
 }
 
-.pl-price-discounted {
+.pl-price-sale {
   font-weight: 700;
-  color: #dc3545;
-  font-size: 14px;
+  color: #10b981;
+  font-size: 16px;
 }
 
 .pl-discount-badge {
-  font-size: 10px;
-  background: #dc3545;
+  display: inline-block;
+  padding: 2px 8px;
+  background: linear-gradient(135deg, #ef4444, #dc2626);
   color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-  margin-top: 2px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
 }
 .pl-rating { font-variant-numeric: tabular-nums; color: #FF9500; font-weight: 600; }
 

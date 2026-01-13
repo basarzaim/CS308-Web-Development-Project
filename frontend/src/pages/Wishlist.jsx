@@ -4,11 +4,14 @@ import { fetchProductById } from "../api/products";
 import { getWishlist, removeFromWishlist } from "../stores/wishlist";
 import { addToCart } from "../stores/cart";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../components/ToastContainer";
+import EmptyState from "../components/EmptyState";
 import * as wishlistAPI from "../api/wishlist";
 import "./Wishlist.css";
 
 export default function Wishlist() {
   const { isAuthenticated } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [wishlistItems, setWishlistItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -90,17 +93,19 @@ export default function Wishlist() {
       setDiscountedItems(prev => prev.filter(p => p.id !== productId));
     } catch (err) {
       console.error("Failed to remove from wishlist:", err);
-      setError(err.message || "Failed to remove item");
+      showError(err.message || "Failed to remove item");
     }
   }
 
   async function handleAddToCart(productId) {
     try {
       await addToCart(productId, 1);
+      showSuccess("Added to cart!");
       // Optionally remove from wishlist after adding to cart
       // handleRemove(productId);
     } catch (err) {
       console.error("Failed to add to cart:", err);
+      showError(err.message || "Failed to add to cart");
     }
   }
 
